@@ -1,0 +1,12 @@
+# Raw, non-gzipped data
+david_cholera.raw_dereplicated.fasta
+david_cholera.otu_table.100.denovo_oligotypes
+david_cholera.otu_table.100.denovo
+david_cholera.otu_seqs.100.fasta
+david_cholera.otu_table.100.denovo.rdp_assigned
+quality_control/
+RDP_classifications.denovo.txt
+david_cholera.otu_table.100.denovo.rdp_assigned
+
+# Annoying files
+*~

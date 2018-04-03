@@ -1,0 +1,146 @@
+# Get the right files
+
+Download study metadata from ENA (click on 'TEXT'): https://www.ebi.ac.uk/ena/data/view/PRJEB9150
+
+```
+cut -f 12 PRJEB9150.txt | tail -n +2 | tr ';' '\n' > ftp_files.txt
+sed -i '/LD-Run/d' ftp_files.txt
+
+while read f; do wget $f; done < ../ftp_files.txt 
+```
+
+# Make manifest file
+
+Note: this should be the .fastq.gz files! Otherwise importing takes forever
+
+```
+import os
+
+files = os.listdir('raw/')
+samples = [i.split('.')[0] for i in files]
+direction = [i.split('.')[1] for i in files]
+dirdict = {'fwd': 'forward', 'rev': 'reverse'}
+direction = [dirdict[i] for i in direction]
+
+DIR = "/home/ubuntu/users/duvallet/data/cholera/david/raw/"
+
+with open('all_raw_gzip_manifest.csv', 'w') as f:
+     f.write(','.join(['sample-id', 'absolute-filepath', 'direction']) + '\n')
+     for i in range(len(samples)):
+         f.write(','.join([samples[i], DIR + files[i], direction[i]]) + '\n')
+```
+
+# Import data into qiime artifact
+
+From within the raw/ folder (which has the manifest file in it):
+
+```
+qiime tools import --type 'SampleData[PairedEndSequencesWithQuality]' --input-path all_raw_gzip_manifest.csv --output-path david_raw_seqs_from_gzip.qza --source-format PairedEndFastqManifestPhred33
+```
+
+Note: when I ran this on the entire dataset with Phred64, I got an error. 
+
+```
+/home/ubuntu/anaconda2/envs/qiime2-2018.2/lib/python3.5/site-packages/skbio/io/registry.py:557: Argument
+OverrideWarning: Best guess was: variant='illumina1.8', continuing with user supplied: 'illumina1.3'
+  ArgumentOverrideWarning)
+
+...lots of traceback ...
+
+ValueError: Decoded Phred score is out of range [0, 62].
+
+An unexpected error has occurred:
+
+  Decoded Phred score is out of range [0, 62].
+```
+
+But now that I've run it with Phred33 and checked the quality with `demux summarize`, I get an error:
+
+```
+Danger: Some of the PHRED quality values are out of range. This is likely because an incorrect PHRED offset was chosen on import of your raw data. You can learn how to choose your PHRED offset during import in the importing tutorial.
+```
+
+Re-running `usearch8 --fastq_chars` on two randomly selected samples, both range from 66 to 105. I think this data should be Phred64 - let's try re-importing this way... Nope, still get the same error as above. I guess I should keep going with the Phred33 data and hope that DADA2 doesn't get mad?
+
+# Check quality
+
+```
+qiime demux summarize --i-data david_raw_seqs_from_gzip.qza --o-visualization david.data_qual.qzv
+```
+
+I get the error pasted above about quality scores being out of range. But, again, if I try importing data with Phred64 I get an error. Let's just keep going.
+
+From the summary, looks like all the reads are trimmed to 100 bp? TODO: figure out how to see length distribution of reads!
+
+Anyway. Let's try running DADA2 before leaving work:
+
+```
+qiime dada2 denoise-single \
+  --i-demultiplexed-seqs david_raw_seqs_from_gzip.qza \
+  --p-trim-left 0 \
+  --p-trunc-len 99 \
+  --o-representative-sequences david.rep-seqs-dada2.qza \
+  --o-table david.table-dada2.qza
+```
+
+Bummer. Error.
+
+```
+Plugin error from dada2:
+
+  An error was encountered while running DADA2 in R (return code 1), please inspect stdout and stderr to learn more.
+
+Debug info has been saved to /tmp/qiime2-q2cli-err-54zj2il3.log
+```
+
+From that file:
+
+```
+3) Denoise remaining samples ..................................................................Error in dada_uniques(names
+(derep[[i]]$uniques), unname(derep[[i]]$uniques),  : 
+  Memory allocation failed.
+Calls: dada -> dada_uniques -> .Call
+Execution halted
+Warning message:
+system call failed: Cannot allocate memory 
+```
+
+Looks like it ran out of memory. The qiime2 forum says I can reduce the number of reads used in training the error model, which should hopefully prevent the memory error? Let's try again...
+
+https://forum.qiime2.org/t/dada2-out-of-memory-error/2947
+
+```
+qiime dada2 denoise-single \
+  --i-demultiplexed-seqs david_raw_seqs_from_gzip.qza \
+  --p-trim-left 0 \
+  --p-trunc-len 99 \
+  --o-representative-sequences david.rep-seqs-dada2.qza \
+  --o-table david.table-dada2.qza \
+  --p-n-reads-learn 200000 \
+  --verbose
+```
+
+If that doesn't work, next step will be to try running deblur (since I think it should take less memory...)
+
+This didn't work. Let's try deblur.
+
+```
+qiime quality-filter q-score \
+ --i-demux david_raw_seqs_from_gzip.qza \
+ --o-filtered-sequences david.demux-filtered.qza \
+ --o-filter-stats david.demux-filter-stats.qza \
+ --verbose
+```
+
+From my previous quality plots, looks like the reverse reads drop in quality a little before the end of the 100 bp reads. Let's trim the length to 95, hopefully they can still overlap?
+
+```
+qiime deblur denoise-16S \
+  --i-demultiplexed-seqs david.demux-filtered.qza \
+  --p-trim-length 95 \
+  --o-representative-sequences david.rep-seqs-deblur.qza \
+  --o-table david.table-deblur.qza \
+  --p-sample-stats \
+  --o-stats david.deblur-stats.qza \
+  --verbose
+```
