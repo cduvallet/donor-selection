@@ -144,3 +144,24 @@ qiime deblur denoise-16S \
   --o-stats david.deblur-stats.qza \
   --verbose
 ```
+
+# Metadata
+
+In Table S1 of the paper.
+
+```
+wget http://mbio.asm.org/content/6/3/e00381-15/DC3/embed/inline-supplementary-material-3.xlsx -P ~/github/donor-selection/data/raw/david/
+```
+
+This metadata is in two tables in the Excel, but should be simple enough to read it in and clean it up a little bit:
+
+```python
+import pandas as pd
+
+fmeta = "/Users/claire/github/donor-selection/data/raw/david/inline-supplementary-material-3.xlsx"
+meta = pd.read_excel(fmeta, skiprows=2)
+meta = meta.dropna(how='all').drop(24)
+
+newfmeta = "/Users/claire/github/donor-selection/data/raw/david/david.metadata.txt"
+meta.to_csv(newfmeta, sep="\t", index=False)
+```
