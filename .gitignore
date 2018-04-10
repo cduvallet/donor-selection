@@ -11,3 +11,5 @@ david_cholera.otu_table.100.denovo.rdp_assigned
 # Annoying files
 *~
 ~$inline-supplementary-material-3.xlsx
+.DS_Store
+.ipynb_checkpoints
