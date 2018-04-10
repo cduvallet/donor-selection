@@ -159,8 +159,13 @@ This metadata is in two tables in the Excel, but should be simple enough to read
 import pandas as pd
 
 fmeta = "/Users/claire/github/donor-selection/data/raw/david/inline-supplementary-material-3.xlsx"
-meta = pd.read_excel(fmeta, skiprows=2)
-meta = meta.dropna(how='all').drop(24)
+meta1 = pd.read_excel(fmeta, skiprows=2)
+meta1 = meta1.loc[:22]
+
+meta2 = pd.read_excel(fmeta, skiprows=27)
+meta2 = meta2.rename(columns={'Sample': 'SampleID'})
+
+meta = pd.concat((meta1, meta2))
 
 newfmeta = "/Users/claire/github/donor-selection/data/raw/david/david.metadata.txt"
 meta.to_csv(newfmeta, sep="\t", index=False)
