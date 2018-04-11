@@ -4,9 +4,18 @@ david_cholera.otu_table.100.denovo_oligotypes
 david_cholera.otu_table.100.denovo
 david_cholera.otu_seqs.100.fasta
 david_cholera.otu_table.100.denovo.rdp_assigned
+
+david_cholera.otu_table.97.denovo_oligotypes
+david_cholera.otu_table.97.denovo
+david_cholera.otu_seqs.97.fasta
+david_cholera.otu_table.97.denovo.rdp_assigned
+
 quality_control/
-RDP_classifications.denovo.txt
+
+RDP_classifications.denovo.100.txt
+RDP_classifications.denovo.97.txt
 david_cholera.otu_table.100.denovo.rdp_assigned
+david_cholera.otu_table.97.denovo.rdp_assigned
 
 # Annoying files
 *~
