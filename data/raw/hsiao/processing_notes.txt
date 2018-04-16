@@ -1,0 +1,85 @@
+# Import data into QIIME
+
+## Make manifest file
+
+
+```
+import os
+
+files = os.listdir('raw_data/')
+samples = [i.rsplit('_', 1)[0] for i in files]
+direction = [i.rsplit('_', 1)[1].split('.')[0] for i in files]
+dirdict = {'R1': 'forward', 'R2': 'reverse'}
+direction = [dirdict[i] for i in direction]
+
+DIR = "/home/ubuntu/users/duvallet/data/cholera/hsiao/raw_data/"
+
+with open('manifest.hsiao.csv', 'w') as f:
+     f.write(','.join(['sample-id', 'absolute-filepath', 'direction']) + '\n')
+     for i in range(len(samples)):
+         f.write(','.join([samples[i], DIR + files[i], direction[i]]) + '\n')
+```
+
+## Import data into qiime artifact
+
+From within the raw_data/ folder (which has the manifest file in it):
+
+```
+qiime tools import --type 'SampleData[PairedEndSequencesWithQuality]' --input-path manifest.hsiao.csv --output-path hsiao.raw-data.qza --source-format PairedEndFastqManifestPhred33
+
+mv hsiao.raw-data.qza ../qiime/
+mv manifest.hsiao.csv ../qiime/
+```
+
+Quality filter sequences:
+
+```
+qiime quality-filter q-score \
+  --i-demux hsiao.raw-data.qza \
+  --o-filtered-sequences hsiao.demux-filtered.qza \
+  --o-filter-stats hsiao.demux-filter-stats.qza \
+  --verbose    
+```
+
+And also summarize the raw data quality so I can visualize it:
+
+```
+qiime demux summarize \
+  --i-data hsiao.raw-data.qza \
+  --o-visualization hsiao.data_qual.qzv
+```
+
+I downloaded this to view it and find the right parameters for deblur.
+Forward reads look pretty good up to 200, reverse reads to like 180.
+Anyway, looks like deblur only handles forward reads so we'll just set
+the trim length to 200.
+
+Denoise with deblur:
+
+```
+qiime deblur denoise-16S \
+  --i-demultiplexed-seqs hsiao.demux-filtered.qza \
+  --p-trim-length 200 \
+  --o-representative-sequences hsiao.rep-seqs-deblur.qza \
+  --o-table hsiao.table-deblur.qza \
+  --p-sample-stats \
+  --o-stats hsiao.deblur-stats.qza \
+  --verbose
+```
+
+And export all the files to formats I can use in downstream things:
+
+```
+qiime tools export \
+  hsiao.table-deblur.qza \ 
+  --output-dir hsiao_export
+
+biom convert \
+  -i hsiao_export/feature-table.biom \
+  -o hsiao_export/hsiao.feature_table.txt \
+  --to-tsv
+
+qiime tools export \
+  hsiao.rep-seqs-deblur.qza \
+  --output-dir hsiao_export/
+```
