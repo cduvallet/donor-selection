@@ -33,3 +33,7 @@ Also, clearly, any "core" healthy bugs (i.e. bactera that are health-associated 
 Then, once you have your list of "healthy" OTUs, you can score each donor based on some combination of each OTU's "importance" and its "probability of engraftment" (probably abundance).
 
 You could also do similar things to define "disease" OTUs (though this might be harder to tease apart? I dunno) and incorporate those into your scoring function as negatives.
+
+## Other random thoughts
+
+Something about pulling from ML/AI world: train one model to optimize for something (i.e. abundance of "good" bugs) and then train another model to reward/punish that first model's answer based on something else (i.e. similarity to "good"/distance from "bad" communities)?

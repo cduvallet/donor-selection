@@ -1,21 +1,31 @@
 # Raw, non-gzipped data
-david_cholera.raw_dereplicated.fasta
-david_cholera.otu_table.100.denovo_oligotypes
-david_cholera.otu_table.100.denovo
-david_cholera.otu_seqs.100.fasta
-david_cholera.otu_table.100.denovo.rdp_assigned
+*.raw_dereplicated.fasta
+*.otu_table.100.denovo_oligotypes
+*.otu_table.100.denovo
+*.otu_seqs.100.fasta
+*.otu_table.100.denovo.rdp_assigned
 
-david_cholera.otu_table.97.denovo_oligotypes
-david_cholera.otu_table.97.denovo
-david_cholera.otu_seqs.97.fasta
-david_cholera.otu_table.97.denovo.rdp_assigned
+*.otu_table.97.denovo_oligotypes
+*.otu_table.97.denovo
+*.otu_seqs.97.fasta
+*.otu_table.97.denovo.rdp_assigned
 
 quality_control/
+GG/
 
 RDP_classifications.denovo.100.txt
 RDP_classifications.denovo.97.txt
-david_cholera.otu_table.100.denovo.rdp_assigned
-david_cholera.otu_table.97.denovo.rdp_assigned
+*.otu_table.100.denovo.rdp_assigned
+*.otu_table.97.denovo.rdp_assigned
+
+# QIIME output files (just re-make if needed...)
+*.qzv
+*.qza
+deblur.log
+
+# These Hsiao files are gzipped before committed
+hsiao.dna-sequences.fasta
+hsiao.feature_table.txt
 
 # Annoying files
 *~

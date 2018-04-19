@@ -1,0 +1,17 @@
+DATASET_ID	hsiao_cholera
+
+#16S_start
+TRIM_LENGTH	200
+RAW_FASTQ_FILES	hsiao.fq2sid.txt
+BARCODES_MAP	None
+OTU_TABLE_RDP	hsiao_cholera.otu_table.97.denovo.rdp_assigned
+OTU_SEQUENCES_FASTA	hsiao_cholera.otu_seqs.97.fasta
+OTU_SIMILARITY	97
+OTU_TABLE_DENOVO	hsiao_cholera.otu_table.97.denovo
+PROCESSED	True
+OLIGOTYPE_TABLE	hsiao_cholera.otu_table.97.denovo_oligotypes
+PRIMERS_FILE	None
+#16S_end
+#ITS_start
+PROCESSED	N/A
+#ITS_end
