@@ -1,0 +1,67 @@
+---
+title: "2018-04-24.hsiao_linear_model"
+output: html_notebook
+---
+
+The purpose of this notebook is to explore building a linear model to identify OTUs associated with diarrhea and recovery in the Hsiao dataset, which has many samples from 7ish different subjects.
+
+```{r, admin}
+library(feather)
+library(tidyr)
+library(dplyr)
+library(reshape2) # to melt OTU table to longform
+
+wd <- '/Users/claire/github/donor-selection/src/exploration/'
+setwd(wd)
+```
+
+```{r, load-data}
+fotu <- '../../data/clean/hsiao.dada2_otu_table.txt'
+fmeta <- '../../data/clean/hsiao.metadata.feather'
+
+# Read in data
+df <- read.table(fotu, row.names = 1)
+meta <- read_feather(fmeta)
+rownames(meta) <- meta$sample_id
+
+# Convert counts to log(counts + 1)
+log_df <- log10(df + 1)
+```
+```{r}
+# Get the samples I want: recovery and diarrhea only
+meta <- meta %>% filter(disease %in% c("diarrhea", "recovery"))
+samples <- meta$sample_id
+
+# Order OTU table and metadata the same
+log_df <- log_df[rownames(log_df) %in% samples, ]
+log_df <- log_df[match(samples, rownames(log_df)), ]
+
+# Check that I didn't mess this up
+print(rownames(log_df) %>% head)
+print(meta$sample_id %>% head)
+
+# Prep dataframe for use in lm (needs to have OTUs, disease indicator, subject indicator)
+# what's in columns vs rows again??
+log_df$sample_id <- rownames(log_df)
+
+keep_meta_cols <- c("sample_id", "disease", "subject_id")
+for_lm <- merge(log_df, meta[, keep_meta_cols], "sample_id")
+
+# Check: the for_lm should have 2 additional columns
+print(c(dim(log_df), dim(meta), dim(for_lm)))
+
+# Convert to tidy format for use with lm
+abun_long <- melt(for_lm, id.vars=c("sample_id", "disease", "subject_id"),
+                  variable.name="otu", value.name="abun")
+head(abun_long)
+```
+
+```{r, do-lm}
+res <- lm(abun ~ disease + subject_id, abun_long)
+
+# Wait jk, need to do this for each OTU!
+tmp <- abun_long %>% filter(otu == "X07bf396e6bd6a2cc8bd9bbd422fb782f")
+res <- lm(abun ~ disease + subject_id, data=tmp)
+# Pvalues are here:
+summary(res)$coefficients[ , 4]
+```

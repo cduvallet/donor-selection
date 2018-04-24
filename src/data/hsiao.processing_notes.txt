@@ -1,5 +1,9 @@
 # Import data into QIIME
 
+Note: I did all of this processing on the almlab cluster, not in these folders. I downloaded the final files into the `data/` directory, but the file paths in these notes don't correspond to this repo!
+
+Someday, I'll need to write a full pipeline or something for these!
+
 ## Make manifest file
 
 
@@ -38,7 +42,7 @@ qiime quality-filter q-score \
   --i-demux hsiao.raw-data.qza \
   --o-filtered-sequences hsiao.demux-filtered.qza \
   --o-filter-stats hsiao.demux-filter-stats.qza \
-  --verbose    
+  --verbose
 ```
 
 And also summarize the raw data quality so I can visualize it:
@@ -71,7 +75,7 @@ And export all the files to formats I can use in downstream things:
 
 ```
 qiime tools export \
-  hsiao.table-deblur.qza \ 
+  hsiao.table-deblur.qza \
   --output-dir hsiao_export
 
 biom convert \
@@ -82,4 +86,17 @@ biom convert \
 qiime tools export \
   hsiao.rep-seqs-deblur.qza \
   --output-dir hsiao_export/
+```
+
+# Assign taxonomy
+
+Download the pre-trained, most recent SILVA classifier: https://www.dropbox.com/s/5tckx2vhrmf3flp/silva-132-99-nb-classifier.qza
+
+Link from: https://forum.qiime2.org/t/silva-128-classifiers-available-for-download/3558
+
+```
+qiime feature-classifier classify-sklearn \
+  --i-classifier ../../silva-132-99-nb-classifier.qza \
+  --i-reads hsiao.rep-seqs-deblur.qza \
+  --o-classification hsiao.taxonomy.qza
 ```

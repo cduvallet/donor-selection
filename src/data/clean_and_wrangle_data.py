@@ -2,6 +2,7 @@
 # Code to clean up OTU tables and metadata
 import pandas as pd
 import janitor as jn
+import feather
 
 # Hsiao et al
 otu_out = 'data/clean/hsiao.dada2_otu_table.txt'
@@ -95,3 +96,5 @@ meta.loc[g_group, 'infection_progression'] = 'healthy'
 
 # Write to clean file
 meta.to_csv(meta_out, sep='\t')
+# R doesn't like my txt file...
+feather.to_dataframe(meta, meta_out.split('.')[0] + '.feather')
