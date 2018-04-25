@@ -36,6 +36,10 @@ samples <- meta$sample_id
 log_df <- log_df[rownames(log_df) %in% samples, ]
 log_df <- log_df[match(samples, rownames(log_df)), ]
 
+
+# Remove empty OTUs (these are ones that were in the other samples)
+log_df <- log_df[ , colSums(log_df) > 0]
+
 # Check that I didn't mess this up
 print(rownames(log_df) %>% head)
 print(meta$sample_id %>% head)
@@ -52,16 +56,38 @@ print(c(dim(log_df), dim(meta), dim(for_lm)))
 
 # Convert to tidy format for use with lm
 abun_long <- melt(for_lm, id.vars=c("sample_id", "disease", "subject_id"),
-                  variable.name="otu", value.name="abun")
+                  variable.name="otu", value.name="log_abun")
 head(abun_long)
 ```
 
 ```{r, do-lm}
-res <- lm(abun ~ disease + subject_id, abun_long)
+groups <- split(abun_long, as.factor(abun_long$otu))
+```
 
-# Wait jk, need to do this for each OTU!
-tmp <- abun_long %>% filter(otu == "X07bf396e6bd6a2cc8bd9bbd422fb782f")
-res <- lm(abun ~ disease + subject_id, data=tmp)
-# Pvalues are here:
-summary(res)$coefficients[ , 4]
+```{r}
+allpvals <- c()
+allcoefs <- c()
+for (g in groups) {
+  fit <- lm(log_abun ~ disease + subject_id, data=g)
+  pvals <- summary(fit)$coefficients[,4]
+  pvals[["otu"]] <- as.character(unique(g$otu))
+  allpvals <- rbind(allpvals, pvals)
+  coefs <- fit$coefficients
+  coefs[["otu"]] <- as.character(unique(g$otu))
+  allcoefs <- rbind(allcoefs, coefs)
+}
+rownames(allpvals) <- seq(1, dim(allpvals)[1])
+rownames(allcoefs) <- seq(1, dim(allcoefs)[1])
+allpvals <- as.data.frame(allpvals)
+allcoefs <- as.data.frame(allcoefs)
+```
+
+
+```{r}
+# First get the "factors" into characters, then to doubles
+allpvals$diseaserecovery <- as.numeric(as.character(allpvals$diseaserecovery))
+allpvals <- allpvals[order(allpvals$diseaserecovery), ]
+# Visualize bugs associated with recovery
+
+
 ```
