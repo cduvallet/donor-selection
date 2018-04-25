@@ -100,3 +100,10 @@ qiime feature-classifier classify-sklearn \
   --i-reads hsiao.rep-seqs-deblur.qza \
   --o-classification hsiao.taxonomy.qza
 ```
+
+Download the taxonomy file from the almlab node, then:
+
+```
+qiime tools export hsiao.taxonomy.qza --output-dir hsiao_export/
+mvmv hsiao_export/taxonomy.tsv hsiao_export/hsiao.taxonomy.tsv
+```

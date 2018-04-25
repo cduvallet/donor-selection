@@ -26,6 +26,7 @@ deblur.log
 # These Hsiao files are gzipped before committed
 hsiao.dna-sequences.fasta
 hsiao.feature_table.txt
+hsiao.taxonomy.tsv
 
 # Annoying files
 *~
