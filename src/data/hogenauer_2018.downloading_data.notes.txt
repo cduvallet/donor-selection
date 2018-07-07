@@ -1,0 +1,31 @@
+# Högenauer 2018 UC FMT study
+
+Disease Indication: UC patients
+Sample Information: Open-label study. Multiple FMT. All patients pre-treated with antibiotics.
+n_samples: 27
+authors: P. Kump, P. Wurm, H. P. Gröchenig, H. Wenzl, W. Petritsch, B. Halwachs, M. Wagner, V. Stadlbauer, A. Eherer, K. M. Hoffmann, A. Deutschmann, 6 G. Reicht, L. Reiter, P. Slawitsch, G. Gorkiewicz, C. Högenauer
+year: 2018
+paper_title: The taxonomic composition of the donor intestinal microbiota is a major factor influencing the efficacy of faecal microbiota transplantation in therapy refractory ulcerative colitis
+paper_link: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5765501/
+data: SRA, PRJNA388210
+data_link: https://www.ebi.ac.uk/ena/data/view/PRJNA388210
+
+### Downloading Data
+
+Metadata file was downloaded from the ENA, with some additional columns selected (e.g. fastq ftp)
+
+Importing bulk download file from EMBL and converting to a single dimensional list of ftp strings
+
+```
+import pandas as pd
+hogenauer2018_prj = pd.read_csv('Hogenauer2018_PRJEB11841.txt', sep='\t')
+hogenauer2018_allgz = hogenauer2018_prj['fastq_ftp'].str.cat(sep=';')
+with open('hogenauer2018.fastq_ftp.txt', 'w') as f:
+     f.write('\n'.join(hogenauer2018_allgz.split(';')) + '\n')
+```
+
+Now, download:
+
+```
+wget -P data/ -i hogenauer2018.fastq_ftp.txt
+```

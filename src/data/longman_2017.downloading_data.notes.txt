@@ -1,0 +1,34 @@
+## Longman_2017 UC FMT study
+
+Disease Indication: UC patients
+Sample Information: Prospective, open-label pilot study. Single FMT by colonoscopy. 2-donor FMP.
+n_samples: 20
+authors: Vinita Jacob, Carl Crawford, Shirley Cohen-Mekelburg, Monica Viladomiu, Gregory G. Putzel, Yecheskel Schneider, Fatiha Chabouni, Sarah O'Neil, Brian Bosworth, Viola Woo, Nadim J. Ajami, Joseph F. Petrosino, Ylaine Gerardin, Zain Kassam, Mark Smith, Iliyan D. Iliev, Gregory F. Sonnenberg, David Artis, Ellen Scherl, Randy S. Longman
+year: 2017
+paper_title: Single Delivery of High-Diversity Fecal Microbiota Preparation by Colonoscopy Is Safe and Effective in Increasing Microbial Diversity in Active Ulcerative Colitis
+paper_link: https://www.ncbi.nlm.nih.gov/pubmed/28445246
+data: SRA, PRJNA388210
+data_link: https://www.ebi.ac.uk/ena/data/view/PRJNA388210
+
+### Downloading Data
+
+Metadata was downloaded from the ENA.
+
+Importing bulk download file from EMBL and converting to a single dimensional list of ftp strings
+
+```
+import pandas as pd
+
+longman2017_prj = pd.read_csv('Longman2017_PRJNA388210.txt', sep='\t')
+longman2017_allgz = longman2017_prj['fastq_ftp'].str.cat(sep=';')
+with open('longman2017.fastq_ftp.txt', 'w') as f:
+     f.write('\n'.join(longman2017_allgz.split(';')) + '\n')
+```
+
+Now, download:
+
+```
+wget -P data/ -i longman2017.fastq_ftp.txt
+```
+
+
