@@ -1,0 +1,10 @@
+# Get the right files
+
+Download study metadata from ENA (click on 'TEXT'): https://www.ebi.ac.uk/ena/data/view/PRJEB9150
+
+```
+cut -f 12 PRJEB9150.txt | tail -n +2 | tr ';' '\n' > ftp_files.txt
+sed -i '/LD-Run/d' ftp_files.txt
+
+while read f; do wget $f; done < ../ftp_files.txt 
+```
