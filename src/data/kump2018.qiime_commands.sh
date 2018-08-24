@@ -37,3 +37,13 @@ qiime deblur visualize-stats \
   --i-deblur-stats kump2018.deblur-stats.qza \
   --o-visualization kump2018.deblur-stats.qzv
 
+# Assign taxonomy
+
+# First, you'll need to prep the classifier
+# See prep_qiime_classifier.sh script for eventual makefile
+
+# TODO: change path to classifier to something smarter/better
+qiime feature-classifier classify-sklearn \
+  --i-reads kump2018.rep-seqs-deblur.qza \
+  --i-classifier ../../silva-132-99-nb-classifier.qza \
+  --o-classification kump2018.taxonomy.qza
