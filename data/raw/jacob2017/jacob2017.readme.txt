@@ -1,0 +1,91 @@
+# Jacob_2017 UC FMT study
+
+Disease Indication: UC patients
+Sample Information: Prospective, open-label pilot study. Single FMT by colonoscopy. 2-donor FMP.
+n_samples: 20
+authors: Vinita Jacob, Carl Crawford, Shirley Cohen-Mekelburg, Monica Viladomiu, Gregory G. Putzel, Yecheskel Schneider, Fatiha Chabouni, Sarah O'Neil, Brian Bosworth, Viola Woo, Nadim J. Ajami, Joseph F. Petrosino, Ylaine Gerardin, Zain Kassam, Mark Smith, Iliyan D. Iliev, Gregory F. Sonnenberg, David Artis, Ellen Scherl, Randy S. Longman
+year: 2017
+paper_title: Single Delivery of High-Diversity Fecal Microbiota Preparation by Colonoscopy Is Safe and Effective in Increasing Microbial Diversity in Active Ulcerative Colitis
+paper_link: https://www.ncbi.nlm.nih.gov/pubmed/28445246
+data: SRA, PRJNA388210
+data_link: https://www.ebi.ac.uk/ena/data/view/PRJNA388210
+
+## Downloading Data
+
+I downloaded the study metadata from EMBL and included all available columns 
+(click on `Select columns`, select all options, and then click on `TEXT` to download
+the text file PRJNA388210.txt).
+
+Then, grab the fastq ftp links and write to file:
+
+```
+import pandas as pd
+
+longman2017_prj = pd.read_csv('jacob2017.PRJNA388210.txt', sep='\t')
+longman2017_allgz = longman2017_prj['fastq_ftp'].str.cat(sep=';')
+with open('jacob2017.fastq_ftp.txt', 'w') as f:
+     f.write('\n'.join(longman2017_allgz.split(';')) + '\n')
+```
+
+Now, download:
+
+```
+wget -P data/ -i jacob2017.fastq_ftp.txt
+```
+
+## Check download
+
+Get the md5sums for the downloaded files:
+
+```
+md5sum fastq/*.fastq.gz > jacob2017.md5sums_downloaded.txt
+```
+
+And compare with the expected md5sums from the metadata:
+
+```ipython
+import pandas as pd
+
+# Import md5s from downloaded data
+data = pd.read_csv('jacob2017.md5sums_downloaded.txt', sep='  ', names=['md5', 'file'])
+
+# Import metadata
+df = pd.read_csv('jacob2017.PRJNA388210.txt', sep='\t')
+
+# cat returns a string of all values separated by ;
+expected_md5 = df['fastq_md5'].str.cat(sep=';')
+expected_files = df['fastq_ftp'].str.cat(sep=';')
+
+expected_df = pd.DataFrame(
+	        [expected_files.split(';'), expected_md5.split(';')],
+		    index=['file', 'expected_md5']).T
+
+data['gz_file'] = data['file'].str.split('fastq/').str[1]
+expected_df['gz_file'] = expected_df['file'].str.split('/').str[-1]
+
+# Combine them on the fastq.gz file name
+tmp = pd.merge(expected_df, data, left_on='gz_file', right_on='gz_file')
+
+print('{} out of {} files match the expected md5sum'.format(
+	  sum(tmp['expected_md5'] == tmp['md5']),
+	  tmp.shape[0]))
+```
+
+Output:
+``` 
+In [26]: print('{} out of {} files match the expected md5sum'.format(
+   ....:           sum(tmp['expected_md5'] == tmp['md5']),
+   ....:           tmp.shape[0]))
+156 out of 156 files match the expected md5sum
+```
+
+Great, download worked!
+
+# Processing
+
+From the qiime-proc folder, in a tmux session:
+
+```
+./jacob2017.qiime_commands.sh > jacob2017.qiime_stdout.txt
+```
+

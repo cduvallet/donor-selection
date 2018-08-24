@@ -52,3 +52,20 @@ qiime feature-classifier classify-sklearn \
   --i-reads jacob2017.rep-seqs-deblur.qza \
   --i-classifier ../../silva-132-99-nb-classifier.qza \
   --o-classification jacob2017.taxonomy.qza
+
+# export data
+qiime tools export \
+  jacob2017.taxonomy.qza \
+  --output-dir exported_data
+
+mv exported_data/taxonomy.tsv exported_data/jacob2017.taxonomy.tsv
+
+qiime tools export \
+  jacob2017.table-deblur.qza \
+  --output-dir exported_data
+
+mv exported_data/feature-table.biom exported_data/jacob2017.feature-table.biom
+biom convert \
+  -i exported_data/jacob2017.feature-table.biom \
+  -o exported_data/jacob2017.feature-table.txt \
+  --to-tsv

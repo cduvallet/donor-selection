@@ -1,0 +1,94 @@
+# Study details
+
+Diease: UC
+FMT study: Yes
+Authors: P. Kump, P. Wurm, H. P. Gröchenig, H. Wenzl, W. Petritsch, B. Halwachs, M. Wagner, V. Stadlbauer, A. Eherer, K. M. Hoffmann, A. Deutschmann, G. Reicht, L. Reiter, P. Slawitsch, G. Gorkiewicz and C. Högenauer 
+year: 2017 
+paper title: The taxonomic composition of the donor intestinal microbiota is a major factor influencing the efficacy of faecal microbiota transplantation in therapy refractory ulcerative colitis 
+paper link: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5765501/ 
+description: open prospective trial of 5 FMTs at 14 days interval after antibiotic pre-treatment (FMT-group) with a nonrandomised control group with antibiotic pre-treatment only (AB-group) in chronic active UC
+project id: SRA, PRJEB11841
+data link: https://www.ebi.ac.uk/ena/data/view/PRJEB11841	
+metadata link: https://github.com/LGPW/FMT_in_TRUC_APT2017
+
+# Downloading data
+
+I downloaded the study information from EMBL into file kump2018.PRJEB11841.txt.
+I clicked on `Select columns`, selected all available columns, then clicked on 
+`TEXT` to download as text file.
+
+Then, I created a file with the ftp links:
+
+```ipython
+import pandas as pd
+
+df = pd.read_csv('kump2018.PRJEB11841.txt', sep='\t')
+ftp_files = df['submitted_ftp'].str.cat(sep=';')
+with open('kump2018.fastq_ftp.txt', 'w') as f:
+     f.write('\n'.join(ftp_files.split(';')) + '\n')
+```
+
+Then, download:
+
+```
+wget -P fastq/ -i kump2018.fastq_ftp.txt
+```
+
+## Check md5sums of downloaded data
+
+Get the md5sums of the downloaded data:
+
+
+And compare with expected:
+
+```ipython
+import pandas as pd
+
+# Import md5s from downloaded data
+data = pd.read_csv('kump2018.md5sums_downloaded.txt', sep='  ', names=['md5', 'file'])
+
+# Import metadata
+df = pd.read_csv('kump2018.PRJEB11841.txt', sep='\t')
+
+# cat returns a string of all values separated by ;
+expected_md5 = df['submitted_md5'].str.cat(sep=';')
+expected_files = df['submitted_ftp'].str.cat(sep=';')
+
+expected_df = pd.DataFrame(
+                [expected_files.split(';'), expected_md5.split(';')],
+                    index=['file', 'expected_md5']).T
+
+data['gz_file'] = data['file'].str.split('fastq/').str[1]
+expected_df['gz_file'] = expected_df['file'].str.split('/').str[-1]
+
+# Combine them on the fastq.gz file name
+tmp = pd.merge(expected_df, data, left_on='gz_file', right_on='gz_file')
+
+print('{} out of {} files match the expected md5sum'.format(
+          sum(tmp['expected_md5'] == tmp['md5']),
+          tmp.shape[0]))
+```
+
+Output:
+
+```
+344 out of 344 files match the expected md5sum
+```
+
+Good, download is checked!
+
+# Metadata
+
+Download from the github:
+
+```
+wget https://raw.githubusercontent.com/LGPW/FMT_in_TRUC_APT2017/master/mapping_file.txt
+```
+
+# Processing
+
+qiime commands are in qiime-proc folder, kump2018.qiime_commands.sh
+
+```
+./kump2018.qiime_commands.sh > kump2018.qiime_stdout.txt
+```
