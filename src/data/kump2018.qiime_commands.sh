@@ -48,6 +48,13 @@ qiime feature-classifier classify-sklearn \
   --i-classifier ../../silva-132-99-nb-classifier.qza \
   --o-classification kump2018.taxonomy.qza
 
+# Classify with GG
+qiime feature-classifier classify-sklearn \
+  --i-reads kump2018.rep-seqs-deblur.qza \
+  --i-classifier ../../gg-13-8-99-nb-classifier.qza \
+  --o-classification kump2018.taxonomy_gg-13-8-99.qza
+
+
 # export data
 qiime tools export \
   kump2018.taxonomy.qza \
