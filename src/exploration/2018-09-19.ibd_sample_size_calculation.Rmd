@@ -1,0 +1,38 @@
+---
+title: "Sample size calculation"
+output: html_notebook
+---
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(pwr)
+```
+```{r}
+#fmt_response <- 0.25
+N <- seq(15, 550, by=50)
+D <- c(0.2, 0.5, 0.8)
+FMT <- c(0.1, 0.25, 0.5)
+res <- c()
+for (fmt_response in FMT){
+  for (n in N){
+    n1 <- ceiling(fmt_response * n)
+    n2 <- n - n1
+    for (d in D){
+      p <- pwr.t2n.test(n1 = n1, n2 = n2, d = d)
+      res <- rbind(res, c(n1, n2, n, d, p$power, fmt_response))        
+    }  
+  }
+}
+colnames(res) <- c("n1", "n2", "N", "d", "power", "fmt_response")
+res <- res %>% as.data.frame()
+res$d <- res$d %>% as.factor()
+res$fmt_response <- res$fmt_response %>% as.factor()
+```
+
+```{r fig.width=4, fig.height=1.5}
+p <- ggplot(res, aes(N, power, color=d)) + geom_point()
+p + facet_wrap(~fmt_response)
+```
