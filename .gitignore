@@ -1,3 +1,8 @@
+# Clinical data that I got from authors
+FMT_study_log_23Sept2016_edited.xlsx
+FMT Clinical Response Remission.xlsx
+
+
 # Raw, non-gzipped data
 *.raw_dereplicated.fasta
 *.otu_table.100.denovo_oligotypes
