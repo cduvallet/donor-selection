@@ -1,0 +1,24 @@
+
+Data was downloaded by Pratik using wget from the fastq.gz files
+in ENA.
+
+# Make manifest file
+
+```ipython
+
+import pandas as pd
+
+df = pd.read_csv('goyal2018.PRJNA380944.txt', sep='\t')
+
+df['file_name'] = '/home/ubuntu/users/pratik/goyal2018/fastq/' + df['fastq_ftp'].str.rsplit('/', 1).str[1]
+
+with open('goyal2018.manifest_file.csv', 'w') as f:
+     f.write(','.join(['sample-id', 'absolute-filepath', 'direction']) + '\n')
+     for row in zip(df['sample_alias'], df['file_name'], len(df['sample_alias'])*['forward']):
+         f.write(','.join(row) + '\n')
+```
+
+# QIIME 2 commands
+
+Imported the data and visualized sequences: quality is very good up to
+250 bp. Let's trim at 220 bp, to be consistent with the other datasets.
