@@ -20,9 +20,13 @@ Steps:
 Most of this code is copied from my previous code using
 this data: https://github.com/cduvallet/microbiomeHD/blob/master/src/data/clean_otu_and_metadata.py
 
+I'll also convert to relative abundance before writing the file.
+And I'll collapse to genus level and save that as a clean file as well.
+
 """
 import pandas as pd
 import feather
+import copy
 import os
 
 def define_file_paths(dataset, rawdir):
@@ -221,6 +225,54 @@ def remove_shallow_otus(df, perc_samples=None, n_reads=None):
 
     return df
 
+def collapse_to_genus(OTU_table):
+    """
+    Collapses OTU table to genus level by string-matching.
+    This is still based on Thomas Gurry's code (and can
+    certainly be improved...)
+
+    Parameters
+    ----------
+    df : pandas dataframe
+        OTUs in columns, samples in rows.
+        Taxonomic levels in OTU strings should be semicolon-delimited,
+        starting with kingdom level.
+        Unannotated taxonomic levels should end with '__' (e.g. ''...;g__Roseburia;s__;d__denovo123')
+
+    Returns
+    -------
+    newdf : pandas dataframe
+        OTUs in columns, samples in rows.
+        OTUs are collapsed to the given taxonomic level.
+        Matching values (for annotated taxa) are summed for each sample.
+        Values corresponding to unannotated taxa are discarded.
+    """
+
+    OTU_IDs = list(OTU_table.columns)
+
+    # Collapse to the right level
+    OTU_taxa = [';'.join(OTU_ID.split(';')[:6]) for OTU_ID in OTU_IDs]
+
+    # Get indices of each unique taxon
+    taxa_indices = {}
+    for i in range(len(OTU_taxa)):
+        if ((OTU_taxa[i] not in taxa_indices)
+                and (OTU_taxa[i][(len(OTU_taxa[i])-2):] != "__")):
+            taxa_indices[OTU_taxa[i]] = []
+        if (OTU_taxa[i][(len(OTU_taxa[i])-2):] != "__"):
+            taxa_indices[OTU_taxa[i]].append(i)
+    # Make new empty df with the same samples as original df and taxa in taxa_indices.keys()
+    newdf = pd.DataFrame(
+        index=df.index, columns=taxa_indices.keys(), data=0)
+
+    # Get sample contents for each taxa of the chosen level and put into newdf
+    for key in taxa_indices:
+        indices = taxa_indices[key]
+        newcol = OTU_table.iloc[:, indices].sum(axis=1)
+        newdf[key] = copy.copy(newcol)
+
+    return newdf
+
 def define_clean_paths(cleandir, dataset):
     """
     Returns the file path for the clean otu table and metadata
@@ -229,11 +281,15 @@ def define_clean_paths(cleandir, dataset):
             dataset + '.otu_table.feather']
     otupath = os.path.join(*otupath)
 
+    genuspath = [cleandir,
+            dataset + '.otu_table.genus.feather']
+    genuspath = os.path.join(*genuspath)
+
     metapath = [cleandir,
              dataset + '.metadata.feather']
     metapath = os.path.join(*metapath)
 
-    return otupath, metapath
+    return otupath, genuspath, metapath
 
 # Define data directories, relative to the current path
 rawdir = 'data/raw'
@@ -257,10 +313,20 @@ for dataset, condition in zip(datasets, conditions):
     # Clean up the OTU table
     df, meta = clean_up_tables(df, meta,
         n_reads_otu, n_reads_sample, perc_samples)
+
+    # Convert to relative abundance
+    df = df.divide(df.sum(axis=1), axis=0)
+
+    # Collapse to genus level
+    genusdf = collapse_to_genus(df)
+
     # Write files
     ## Remove the annoying year on the gevers dataset ID
     if dataset == "ibd_gevers_2014":
         dataset = "ibd_gevers"
-    dfpath, metapath = define_clean_paths(cleandir, dataset)
+
+    dfpath, genuspath, metapath = define_clean_paths(cleandir, dataset)
+
     feather.write_dataframe(df.reset_index(), dfpath)
+    feather.write_dataframe(genusdf.reset_index(), genuspath)
     feather.write_dataframe(meta.reset_index(), metapath)
