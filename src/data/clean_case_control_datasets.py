@@ -301,8 +301,8 @@ n_reads_sample = 100
 perc_samples = 0.01
 
 # We're going to be super noobs and just hard-code the datasets in here for now.
-datasets = ['cdi_schubert', 'crc_baxter', 'ibd_gevers_2014', 'ob_goodrich']
-conditions = [None, None, {'sample_location': ['stool']}, {'n_sample': [0]}]
+datasets = ['cdi_schubert', 'crc_baxter', 'ibd_alm', 'ob_goodrich']
+conditions = [None, None, None, {'n_sample': [0]}]
 
 for dataset, condition in zip(datasets, conditions):
     print(dataset)
@@ -322,8 +322,8 @@ for dataset, condition in zip(datasets, conditions):
 
     # Write files
     ## Remove the annoying year on the gevers dataset ID
-    if dataset == "ibd_gevers_2014":
-        dataset = "ibd_gevers"
+    if dataset == "ibd_alm":
+        dataset = "ibd_papa"
 
     dfpath, genuspath, metapath = define_clean_paths(cleandir, dataset)
 

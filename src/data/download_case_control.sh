@@ -33,5 +33,5 @@ download_dataset() {
 
 download_dataset cdi_schubert
 download_dataset crc_baxter
-download_dataset ibd_gevers_2014
+download_dataset ibd_alm
 download_dataset ob_goodrich
