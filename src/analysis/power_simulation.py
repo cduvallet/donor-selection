@@ -191,10 +191,17 @@ def parallel_process((df, genusdf, ctrl, case, n_ctrl, n_case, n, p)):
 fout_qvalues = 'data/analysis/power_simulation.otu_qvalues.txt'
 fout_nsig = 'data/analysis/power_simulation.n_sig.txt'
 
+np.random.seed(12345)
+
 # These values should reflect what we'd expect
 # from "reasonable" clinical trials
-totalNs = [10, 25, 50, 75, 100, 150, 200]
+totalNs = [10, 25, 50, 100, 150, 200]
 perc_success = [0.1, 0.25, 0.5, 0.75, 0.9]
+nreps = 5
+
+### DEBUGGING ONLY
+#totalNs = [10, 25]#, 50, 100, 150, 200]
+#perc_success = [0.1, 0.25]#, 0.5, 0.75, 0.9]
 
 # Note: different datasets represent different "expected effect sizes"
 DATASETS = ['cdi_schubert', 'crc_baxter', 'ibd_papa', 'ob_goodrich']
@@ -209,86 +216,95 @@ CASES = {'cdi_schubert': 'CDI',
 
 all_qvals = []
 all_nsigs = []
-for dataset in DATASETS:
-    ## Read in dataset
-    fotu = 'data/clean/' + dataset + '.otu_table.feather'
-    fgenus = 'data/clean/' + dataset + '.otu_table.genus.feather'
-    fmeta = 'data/clean/' + dataset + '.metadata.feather'
+for r in range(nreps):
+    print(r)
+    for dataset in DATASETS:
+        print(dataset)
+        ## Read in dataset
+        fotu = 'data/clean/' + dataset + '.otu_table.feather'
+        fgenus = 'data/clean/' + dataset + '.otu_table.genus.feather'
+        fmeta = 'data/clean/' + dataset + '.metadata.feather'
 
-    df, genusdf, meta = (read_dataframe(f) for f in [fotu, fgenus, fmeta])
+        df, genusdf, meta = (read_dataframe(f) for f in [fotu, fgenus, fmeta])
 
-    ## Set up cases and controls
-    ctrl_lbl = CTRLS[dataset]
-    case_lbl = CASES[dataset]
-    ctrl = meta.query('DiseaseState == @ctrl_lbl').index.tolist()
-    case = meta.query('DiseaseState == @case_lbl').index.tolist()
+        ## Set up cases and controls
+        ctrl_lbl = CTRLS[dataset]
+        case_lbl = CASES[dataset]
+        ctrl = meta.query('DiseaseState == @ctrl_lbl').index.tolist()
+        case = meta.query('DiseaseState == @case_lbl').index.tolist()
 
-    ## Set up simulation parameters
-    N, P, N_CTRL, N_CASE = make_param_combos(totalNs, perc_success, ctrl, case)
+        ## Set up simulation parameters
+        N, P, N_CTRL, N_CASE = make_param_combos(
+            totalNs, perc_success, ctrl, case)
 
-    ## Calculate pvalues
-    p = multiprocessing.Pool()
-    allres = p.map(
-        parallel_process,
-        zip(len(N)*[df],
-            len(N)*[genusdf],
-            len(N)*[ctrl],
-            len(N)*[case],
-            N_CTRL, N_CASE,
-            N, P))
-    p.close()
-    # Not sure I need this (not sure what it does...)
-    p.join()
+        ## Calculate pvalues
+        p = multiprocessing.Pool()
+        allres = p.map(
+            parallel_process,
+            zip(len(N)*[df],
+                len(N)*[genusdf],
+                len(N)*[ctrl],
+                len(N)*[case],
+                N_CTRL, N_CASE,
+                N, P))
+        p.close()
+        # Not sure I need this (not sure what it does...)
+        p.join()
 
-    ## Put the parallelized results into two dataframes
-    # sig_results and qval_results are both lists of dataframes
-    sig_results = pd.concat([i[0] for i in allres], ignore_index=True)
-    qval_results = (
-        pd.concat([i[1] for i in allres])
-        .reset_index()
-        .rename(columns={'index': 'otu'})
+        ## Put the parallelized results into two dataframes
+        # sig_results and qval_results are both lists of dataframes
+        sig_results = pd.concat([i[0] for i in allres], ignore_index=True)
+        qval_results = (
+            pd.concat([i[1] for i in allres])
+            .reset_index()
+            .rename(columns={'index': 'otu'})
+            )
+
+        ## Calculate pvalues/nsig/etc with original dataset,
+        ## and add that to the results
+        potus = compare_otus_teststat(
+            df, ctrl, case,
+            method='kruskal-wallis', multi_comp='fdr')
+        pgenus = compare_otus_teststat(
+            genusdf, ctrl, case,
+            method='kruskal-wallis', multi_comp='fdr')
+
+        # Format
+        sigall, pvalsall = format_sig_results(
+            potus, pgenus,
+            len(ctrl), len(case),
+            len(ctrl)+len(case), np.nan)
+        pvalsall = pvalsall.reset_index().rename(columns={'index': 'otu'})
+        pvalsall = pvalsall.rename(columns={'p': 'p_allsamples',
+                                    'q': 'q_allsamples',
+                                    'test_stat': 'test_stat_allsamples'})
+        sigall = sigall.rename(columns={'n_sig': 'n_sig_allsamples'})
+
+        # Concatenate with the other results full results, so that each
+        # combination of parameters has additional columns with the results
+        # for all samples
+
+        # This merges on the common columns 'otu' and 'taxa_level'
+        qval_results = pd.merge(
+            pvalsall[['otu', 'taxa_level', 'p_allsamples', 'q_allsamples']],
+            qval_results
         )
 
-    ## Calculate pvalues/nsig/etc with original dataset, and add that to the results
-    potus = compare_otus_teststat(
-        df, ctrl, case,
-        method='kruskal-wallis', multi_comp='fdr')
-    pgenus = compare_otus_teststat(
-        genusdf, ctrl, case,
-        method='kruskal-wallis', multi_comp='fdr')
+        sig_results = pd.merge(
+            sigall[['alpha', 'n_sig_allsamples', 'taxa_level']],
+            sig_results
+        )
 
-    # Format
-    sigall, pvalsall = format_sig_results(
-        potus, pgenus,
-        len(ctrl), len(case),
-        len(ctrl)+len(case), np.nan)
-    pvalsall = pvalsall.reset_index().rename(columns={'index': 'otu'})
-    pvalsall = pvalsall.rename(columns={'p': 'p_allsamples',
-                                'q': 'q_allsamples',
-                                'test_stat': 'test_stat_allsamples'})
-    sigall = sigall.rename(columns={'n_sig': 'n_sig_allsamples'})
+        ## Add study label
+        qval_results['study'] = dataset
+        sig_results['study'] = dataset
 
-    # Concatenate with the other results full results, so that each
-    # combination of parameters has additional columns with the results
-    # for all samples
+        ## Add rep label
+        qval_results['rep'] = r
+        sig_results['rep'] = r
 
-    # This merges on the common columns 'otu' and 'taxa_level'
-    qval_results = pd.merge(
-        pvalsall[['otu', 'taxa_level', 'p_allsamples', 'q_allsamples']],
-        qval_results
-    )
-
-    sig_results = pd.merge(
-        sigall[['alpha', 'n_sig_allsamples', 'taxa_level']],
-        sig_results
-    )
-
-    ## Add study label
-    qval_results['study'] = dataset
-    sig_results['study'] = dataset
-
-    all_qvals.append(qval_results)
-    all_nsigs.append(sig_results)
+        all_qvals.append(qval_results)
+        all_nsigs.append(sig_results)
 
 ## Finally, combine all datasets' results together
 all_qvals_df = pd.concat(all_qvals)
