@@ -321,9 +321,15 @@ for dataset, condition in zip(datasets, conditions):
     genusdf = collapse_to_genus(df)
 
     # Write files
-    ## Remove the annoying year on the gevers dataset ID
     if dataset == "ibd_alm":
         dataset = "ibd_papa"
+
+        # Also change the DiseaseState to be IBD and nonIBD
+        meta['DetailedDiseaseState'] = meta['DiseaseState']
+        meta['DiseaseState'] = (
+            meta['DiseaseState']
+            .apply(lambda x: 'nonIBD' if x == 'nonIBD' else 'IBD')
+            )
 
     dfpath, genuspath, metapath = define_clean_paths(cleandir, dataset)
 

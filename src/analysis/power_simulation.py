@@ -188,8 +188,10 @@ def parallel_process((df, genusdf, ctrl, case, n_ctrl, n_case, n, p)):
     return sigdf, psub
 
 ## Hard coded values and parameters
-fout_qvalues = 'data/analysis/power_simulation.otu_qvalues.txt'
-fout_nsig = 'data/analysis/power_simulation.n_sig.txt'
+n_reps = 30
+
+fout_qvalues = 'power_simulation.otu_qvalues.{}_reps.denovo_otu_only.feather'.format(n_reps)
+fout_nsig = 'data/analysis/power_simulation.n_sig.{}_reps.txt'.format(n_reps)
 
 np.random.seed(12345)
 
@@ -197,7 +199,6 @@ np.random.seed(12345)
 # from "reasonable" clinical trials
 totalNs = [10, 25, 50, 100, 150, 200]
 perc_success = [0.1, 0.25, 0.5, 0.75, 0.9]
-nreps = 5
 
 ### DEBUGGING ONLY
 #totalNs = [10, 25]#, 50, 100, 150, 200]
@@ -216,7 +217,7 @@ CASES = {'cdi_schubert': 'CDI',
 
 all_qvals = []
 all_nsigs = []
-for r in range(nreps):
+for r in range(n_reps):
     print(r)
     for dataset in DATASETS:
         print(dataset)
@@ -310,5 +311,11 @@ for r in range(nreps):
 all_qvals_df = pd.concat(all_qvals)
 all_nsigs_df = pd.concat(all_nsigs)
 
-all_qvals_df.to_csv(fout_qvalues, sep='\t', index=False)
+## Prepare the qvalues dataframe for writing
+## Remove the long OTU strings which are too large for feather to handle
+all_qvals_df['denovo'] = all_qvals_df['otu'].str.rsplit(';', 1).str[1]
+all_qvals_df = all_qvals_df.drop('otu', axis=1)
+
+## Write to files
+feather.write_dataframe(all_qvals_df, fout_qvalues)
 all_nsigs_df.to_csv(fout_nsig, sep='\t', index=False)
