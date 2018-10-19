@@ -74,51 +74,9 @@ for d in datasets:
     min_abun = tidydf['abun'].replace(0, np.nan).min() / 2
     tidydf['log_abun'] = np.log10(tidydf['abun'] + min_abun)
 
-    # Get the mean abundance per group
-    meandf = tidydf.groupby(['denovo', 'DiseaseState'])['log_abun'].mean()
-    meandf.name = 'mean'
-    meandf = (
-        meandf
-        .reset_index()
-        .pivot(index='denovo', columns='DiseaseState', values='mean')
-        )
-    meandf.columns = [i + '_logabun' for i in meandf.columns]
-    meandf['delta_logabun'] = (
-        meandf[case_lbl + '_logabun']
-        - meandf[ctrl_lbl + '_logabun']
-        )
-
-    # Get the std of abundance over all samples
-    # TODO: do I need to exclude the non-control or case samples here?
-    stds = tidydf.groupby('denovo')['log_abun'].std()
-    stds.name = 'std'
-
-    # And differential presence/absence
-    tidydf['present'] = tidydf['abun'] > 0
-    mean_present = tidydf.groupby(['denovo', 'DiseaseState'])['present'].mean()
-    mean_present.name = 'mean'
-    mean_present = (
-        mean_present
-        .reset_index()
-        .pivot(index='denovo', columns='DiseaseState', values='mean')
-        )
-    mean_present.columns = [i + '_presence' for i in mean_present.columns]
-
-    mean_present['delta_presence'] = (
-        mean_present[case_lbl + '_presence']
-        - mean_present[ctrl_lbl + '_presence']
-        )
-
-    # Concatenate into signal-to-noise ratio df
-    snr = pd.concat((stds, meandf), axis=1)
-
-    # Calculate signal to noise and absolute value of it
-    snr['snr'] = snr['delta_logabun'] / snr['std']
-    snr['abs_snr'] = abs(snr['snr'])
-
-    # Also add differential presence
-    snr = pd.concat((snr, mean_present), axis=1)
-    snr['abs_delta_presence'] = abs(snr['delta_presence'])
+    # Read in signal-to-noise and other effects dataframe
+    snr = pd.read_csv('data/analysis/population_effects.{}.txt'.format(d),
+                      sep='\t', index_col=0)
 
     # Add q-values to the dataframe
     snr = pd.merge(
@@ -128,11 +86,7 @@ for d in datasets:
         right_index = True
     )
 
-    # And rank them based on these differences
-    snr = snr.sort_values(by='abs_snr', ascending=False)
-    snr['rank_snr'] = range(snr.shape[0])
-    snr = snr.sort_values(by='abs_delta_presence', ascending=False)
-    snr['rank_delta_presence'] = range(snr.shape[0])
+    # Add rank based on qvalues
     snr = snr.sort_values(by='q_allsamples')
     snr['rank_qvalue'] = range(snr.shape[0])
 
