@@ -188,7 +188,7 @@ def parallel_process((df, genusdf, ctrl, case, n_ctrl, n_case, n, p)):
     return sigdf, psub
 
 ## Hard coded values and parameters
-n_reps = 30
+n_reps = 100
 
 fout_qvalues = 'power_simulation.otu_qvalues.{}_reps.denovo_otu_only.feather'.format(n_reps)
 fout_nsig = 'data/analysis/power_simulation.n_sig.{}_reps.txt'.format(n_reps)
@@ -197,7 +197,7 @@ np.random.seed(12345)
 
 # These values should reflect what we'd expect
 # from "reasonable" clinical trials
-totalNs = [10, 25, 50, 100, 150, 200]
+totalNs = [10, 25, 50, 100, 150]
 perc_success = [0.1, 0.25, 0.5, 0.75, 0.9]
 
 ### DEBUGGING ONLY
