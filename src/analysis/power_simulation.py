@@ -321,7 +321,7 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
     return all_qvals_df, all_nsigs_df
 
 #################  Hard coded values and parameters #################
-n_reps = 2
+n_reps = 100
 
 # This file is too large to write
 #fout_qvalues = 'power_simulation.otu_qvalues.{}_reps.denovo_otu_only.feather'.format(n_reps)
