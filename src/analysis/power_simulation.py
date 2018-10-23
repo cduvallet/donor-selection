@@ -187,11 +187,149 @@ def parallel_process((df, genusdf, ctrl, case, n_ctrl, n_case, n, p)):
     sigdf, psub = format_sig_results(psub, psubgenus, n_ctrl, n_case, n, p)
     return sigdf, psub
 
-## Hard coded values and parameters
+def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
+    """
+    Run the entire simulation for each dataset and parameter combo.
+
+    Parameters
+    ----------
+    n_reps : int
+    DATASETS : list of strings
+    CTRLS, CASES : dicts
+        {dataset_id: str or [list of strs]}
+        strs are the case or control labels in the DiseaseState column
+    totalNs : list of ints
+        list of different total numbers of patients in FMT arm
+    perc_successes : list of floats
+        list of different "percent cases" (i.e. FMT response rate)
+
+    Returns
+    -------
+    all_qvals_df : pandas DataFrame
+        VERY LARGE dataframe with the qvalue for each rep of each OTU in
+        each dataset/simulation setting. Has a 'denovo' column (rather than
+        an 'otu' column).
+        Columns: taxa_level, p_allsamples, q_allsamples, p, test_stat, q
+                 n_ctrl, n_case, total_n, perc_case, study, rep, denovo
+    all_nsigs_df : pandas DataFrame
+        dataframe with the number of significant hits (q < 0.05) per
+        simulation setting.
+    """
+    all_qvals = []
+    all_nsigs = []
+    for r in range(n_reps):
+        print(r)
+        for dataset in DATASETS:
+            print(dataset)
+            ## Read in dataset
+            fotu = 'data/clean/' + dataset + '.otu_table.feather'
+            fgenus = 'data/clean/' + dataset + '.otu_table.genus.feather'
+            fmeta = 'data/clean/' + dataset + '.metadata.feather'
+
+            df = read_dataframe(fotu)
+            genusdf = read_dataframe(fgenus)
+            meta = read_dataframe(fmeta)
+
+            ## Set up cases and controls
+            ctrl_lbl = CTRLS[dataset]
+            case_lbl = CASES[dataset]
+            ctrl = meta.query('DiseaseState == @ctrl_lbl').index.tolist()
+            case = meta.query('DiseaseState == @case_lbl').index.tolist()
+
+            ## Set up simulation parameters
+            N, P, N_CTRL, N_CASE = make_param_combos(
+                totalNs, perc_success, ctrl, case)
+
+            ## Calculate pvalues
+            p = multiprocessing.Pool()
+            allres = p.map(
+                parallel_process,
+                zip(len(N)*[df],
+                    len(N)*[genusdf],
+                    len(N)*[ctrl],
+                    len(N)*[case],
+                    N_CTRL, N_CASE,
+                    N, P))
+            p.close()
+            # Not sure I need this (not sure what it does...)
+            p.join()
+
+            ## Put the parallelized results into two dataframes
+            # sig_results and qval_results are both lists of dataframes
+            sig_results = pd.concat([i[0] for i in allres], ignore_index=True)
+            qval_results = (
+                pd.concat([i[1] for i in allres])
+                .reset_index()
+                .rename(columns={'index': 'otu'})
+                )
+
+            ## Calculate pvalues/nsig/etc with original dataset,
+            ## and add that to the results
+            potus = compare_otus_teststat(
+                df, ctrl, case,
+                method='kruskal-wallis', multi_comp='fdr')
+            pgenus = compare_otus_teststat(
+                genusdf, ctrl, case,
+                method='kruskal-wallis', multi_comp='fdr')
+
+            # Format
+            sigall, pvalsall = format_sig_results(
+                potus, pgenus,
+                len(ctrl), len(case),
+                len(ctrl)+len(case), np.nan)
+            pvalsall = pvalsall.reset_index().rename(columns={'index': 'otu'})
+            pvalsall = pvalsall.rename(columns={'p': 'p_allsamples',
+                                        'q': 'q_allsamples',
+                                        'test_stat': 'test_stat_allsamples'})
+            sigall = sigall.rename(columns={'n_sig': 'n_sig_allsamples'})
+
+            # Concatenate with the other results full results, so that each
+            # combination of parameters has additional columns with the results
+            # for all samples
+
+            # This merges on the common columns 'otu' and 'taxa_level'
+            qval_results = pd.merge(
+                pvalsall[['otu', 'taxa_level', 'p_allsamples', 'q_allsamples']],
+                qval_results
+            )
+
+            sig_results = pd.merge(
+                sigall[['alpha', 'n_sig_allsamples', 'taxa_level']],
+                sig_results
+            )
+
+            ## Add study label
+            qval_results['study'] = dataset
+            sig_results['study'] = dataset
+
+            ## Add rep label
+            qval_results['rep'] = r
+            sig_results['rep'] = r
+
+            all_qvals.append(qval_results)
+            all_nsigs.append(sig_results)
+
+    ## Finally, combine all datasets' results together
+    all_qvals_df = pd.concat(all_qvals)
+    all_nsigs_df = pd.concat(all_nsigs)
+
+    ## Prepare the qvalues dataframe for writing
+    ## Remove the long OTU strings which are too large for feather to handle
+    all_qvals_df['denovo'] = all_qvals_df['otu'].str.rsplit(';', 1).str[1]
+    all_qvals_df = all_qvals_df.drop('otu', axis=1)
+
+    return all_qvals_df, all_nsigs_df
+
+#################  Hard coded values and parameters #################
 n_reps = 100
 
-fout_qvalues = 'power_simulation.otu_qvalues.{}_reps.denovo_otu_only.feather'.format(n_reps)
+# This file is too large to write
+#fout_qvalues = 'power_simulation.otu_qvalues.{}_reps.denovo_otu_only.feather'.format(n_reps)
 fout_nsig = 'data/analysis/power_simulation.n_sig.{}_reps.txt'.format(n_reps)
+
+fout_tophits = 'data/analysis/power_simulation.top_hits_sig.{}_reps.txt'.format(n_reps)
+# This file can probably just be calculated from the top hits file above
+fout_power = 'data/analysis/power_simulation.power.{}_reps.txt'.format(n_reps)
 
 np.random.seed(12345)
 
@@ -215,107 +353,62 @@ CASES = {'cdi_schubert': 'CDI',
          'ibd_papa': ['CD', 'UC'],
          'ob_goodrich': 'OB'}
 
-all_qvals = []
-all_nsigs = []
-for r in range(n_reps):
-    print(r)
-    for dataset in DATASETS:
-        print(dataset)
-        ## Read in dataset
-        fotu = 'data/clean/' + dataset + '.otu_table.feather'
-        fgenus = 'data/clean/' + dataset + '.otu_table.genus.feather'
-        fmeta = 'data/clean/' + dataset + '.metadata.feather'
+################# SIMULATION #################
 
-        df, genusdf, meta = (read_dataframe(f) for f in [fotu, fgenus, fmeta])
-
-        ## Set up cases and controls
-        ctrl_lbl = CTRLS[dataset]
-        case_lbl = CASES[dataset]
-        ctrl = meta.query('DiseaseState == @ctrl_lbl').index.tolist()
-        case = meta.query('DiseaseState == @case_lbl').index.tolist()
-
-        ## Set up simulation parameters
-        N, P, N_CTRL, N_CASE = make_param_combos(
-            totalNs, perc_success, ctrl, case)
-
-        ## Calculate pvalues
-        p = multiprocessing.Pool()
-        allres = p.map(
-            parallel_process,
-            zip(len(N)*[df],
-                len(N)*[genusdf],
-                len(N)*[ctrl],
-                len(N)*[case],
-                N_CTRL, N_CASE,
-                N, P))
-        p.close()
-        # Not sure I need this (not sure what it does...)
-        p.join()
-
-        ## Put the parallelized results into two dataframes
-        # sig_results and qval_results are both lists of dataframes
-        sig_results = pd.concat([i[0] for i in allres], ignore_index=True)
-        qval_results = (
-            pd.concat([i[1] for i in allres])
-            .reset_index()
-            .rename(columns={'index': 'otu'})
-            )
-
-        ## Calculate pvalues/nsig/etc with original dataset,
-        ## and add that to the results
-        potus = compare_otus_teststat(
-            df, ctrl, case,
-            method='kruskal-wallis', multi_comp='fdr')
-        pgenus = compare_otus_teststat(
-            genusdf, ctrl, case,
-            method='kruskal-wallis', multi_comp='fdr')
-
-        # Format
-        sigall, pvalsall = format_sig_results(
-            potus, pgenus,
-            len(ctrl), len(case),
-            len(ctrl)+len(case), np.nan)
-        pvalsall = pvalsall.reset_index().rename(columns={'index': 'otu'})
-        pvalsall = pvalsall.rename(columns={'p': 'p_allsamples',
-                                    'q': 'q_allsamples',
-                                    'test_stat': 'test_stat_allsamples'})
-        sigall = sigall.rename(columns={'n_sig': 'n_sig_allsamples'})
-
-        # Concatenate with the other results full results, so that each
-        # combination of parameters has additional columns with the results
-        # for all samples
-
-        # This merges on the common columns 'otu' and 'taxa_level'
-        qval_results = pd.merge(
-            pvalsall[['otu', 'taxa_level', 'p_allsamples', 'q_allsamples']],
-            qval_results
-        )
-
-        sig_results = pd.merge(
-            sigall[['alpha', 'n_sig_allsamples', 'taxa_level']],
-            sig_results
-        )
-
-        ## Add study label
-        qval_results['study'] = dataset
-        sig_results['study'] = dataset
-
-        ## Add rep label
-        qval_results['rep'] = r
-        sig_results['rep'] = r
-
-        all_qvals.append(qval_results)
-        all_nsigs.append(sig_results)
-
-## Finally, combine all datasets' results together
-all_qvals_df = pd.concat(all_qvals)
-all_nsigs_df = pd.concat(all_nsigs)
-
-## Prepare the qvalues dataframe for writing
-## Remove the long OTU strings which are too large for feather to handle
-all_qvals_df['denovo'] = all_qvals_df['otu'].str.rsplit(';', 1).str[1]
-all_qvals_df = all_qvals_df.drop('otu', axis=1)
+all_qvals_df, all_nsigs_df = run_simulation(
+    n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success)
 
 ## Write to files
-feather.write_dataframe(all_qvals_df, fout_qvalues)
+# This file is too large to write :(
+#feather.write_dataframe(all_qvals_df, fout_qvalues)
 all_nsigs_df.to_csv(fout_nsig, sep='\t', index=False)
+
+################# TOP HITS CALCULATION #################
+
+## Calculate the number of "top hits" which are significant
+alpha = 0.05
+NTOPHITS = [3, 5, 10]
+
+POWER = []
+NSIG = []
+
+for d in DATASETS:
+    # Read in file with the genus ranks, based on signal to noise
+    feffects = 'data/analysis/population_effects.{}.txt'.format(d)
+    effects = pd.read_csv(feffects, sep='\t')
+
+    sub_qvals = all_qvals_df.query('study == @d')
+
+    for ntophits in NTOPHITS:
+        # Define the top hits
+        top_otus = effects.query('rank_snr < @ntophits')['denovo'].tolist()
+
+        # Get the qvalues from each simulation setting
+        top_qvals = sub_qvals.query('denovo == @top_otus')
+
+        # Get rejected OTUs
+        top_qvals.loc[top_qvals.index, 'rejected'] = top_qvals.loc[top_qvals.index, 'q'] <= alpha
+
+        # Calculate number of top hits rejected in each simulation setting
+        top_qvals = top_qvals.groupby(['total_n', 'perc_case', 'rep'])['rejected'].sum().reset_index()
+
+        # How many and what percentage of those simulations were "powered"
+        powerthresh = np.ceil(0.5*ntophits)
+        top_qvals['n_reps_powered'] = top_qvals['rejected'] > powerthresh
+        power = top_qvals.groupby(['total_n', 'perc_case'])['n_reps_powered'].sum().reset_index()
+        power['power'] = power['n_reps_powered'] / float(n_reps)
+
+        # Add study ID and append to list
+        power['study'] = d
+        power['n_top_hits'] = ntophits
+        top_qvals['study'] = d
+        top_qvals['n_top_hits'] = ntophits
+
+        POWER.append(power)
+        NSIG.append(top_qvals)
+
+powerdf = pd.concat(POWER)
+nsigdf = pd.concat(NSIG)
+
+nsigdf.to_csv(fout_tophits, index=False, sep='\t')
+powerdf.to_csv(fout_power, index=False, sep='\t')
