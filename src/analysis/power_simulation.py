@@ -321,7 +321,7 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
     return all_qvals_df, all_nsigs_df
 
 #################  Hard coded values and parameters #################
-n_reps = 100
+n_reps = 2
 
 # This file is too large to write
 #fout_qvalues = 'power_simulation.otu_qvalues.{}_reps.denovo_otu_only.feather'.format(n_reps)
@@ -394,8 +394,9 @@ for d in DATASETS:
 
         # How many and what percentage of those simulations were "powered"
         powerthresh = np.ceil(0.5*ntophits)
-        top_qvals['n_reps_powered'] = top_qvals['rejected'] > powerthresh
-        power = top_qvals.groupby(['total_n', 'perc_case'])['n_reps_powered'].sum().reset_index()
+        top_qvals['rep_powered'] = top_qvals['rejected'] > powerthresh
+        power = top_qvals.groupby(['total_n', 'perc_case'])['rep_powered'].sum().reset_index()
+        power = power.rename(columns={'rep_powered': 'n_reps_powered'})
         power['power'] = power['n_reps_powered'] / float(n_reps)
 
         # Add study ID and append to list
