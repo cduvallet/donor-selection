@@ -3,7 +3,7 @@
 all: data
 
 ## Process data
-data: tidy
+data: tidy metadata
 
 # Need to figure out/whether to include these steps in the Makefile.
 # Currently, I'm keeping things separate per dataset. For the most
@@ -64,3 +64,30 @@ $(goyal_tidy): src/data/add_taxonomy_and_tidy_table.py # To add: OTU table and t
 
 
 tidy: $(kump_tidy) $(jacob_tidy) $(goyal_tidy)
+
+## Metadata files
+
+D = kump2018
+kump_meta := data/clean/$(D).metadata.txt
+raw_kump_meta := data/raw/kump2018/mapping_file.txt
+
+$(kump_meta): src/data/clean_metadata.kump2018.py $(raw_kump_meta)
+	python $<
+
+D = goyal2018
+goyal_meta := data/clean/$(D).metadata.txt
+raw_goyal_meta := data/raw/goyal2018/FMT_study_log_23Sept2016_edited.xlsx \
+			data/raw/goyal2018/goyal2018.PRJNA380944.txt
+
+$(goyal_meta): src/data/clean_metadata.goyal2018.py $(raw_goyal_meta)
+	python $<
+
+D = jacob2017
+jacob_meta := data/clean/$(D).metadata.txt
+raw_jacob_meta := data/raw/jacob2017/FMT\ Clinical\ Response\ Remission.xlsx \
+			data/raw/jacob2017/jacob2017.PRJNA388210.txt
+
+$(jacob_meta): src/data/clean_metadata.jacob2017.py $(raw_jacob_meta)
+	python $<
+
+metadata: $(kump_meta) $(jacob_meta) $(goyal_meta)
