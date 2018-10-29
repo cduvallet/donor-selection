@@ -152,7 +152,13 @@ def add_metadata_to_sigdf(sigdf, n_ctrl, n_case, n, p, taxa_level):
     sigdf['perc_case'] = p
     return sigdf
 
-def format_sig_results(potus, pgenus, n_ctrl, n_case, n, p):
+def get_nsig(potus, pgenus, n_ctrl, n_case, n, p):
+    """
+    Calculates number of OTUs/genera significant at different
+    taxonomic levels. Adds metadata (i.e. simulations settings)
+    to the output dataframe.
+    """
+
     # Calculate number OTUs/genera significant at different levels
     sigdf = get_significant(potus)
     sigdf = add_metadata_to_sigdf(sigdf, n_ctrl, n_case, n, p, 'otu')
@@ -162,30 +168,106 @@ def format_sig_results(potus, pgenus, n_ctrl, n_case, n, p):
 
     sigdf = pd.concat((sigdf, genussig), ignore_index=True)
 
-    # Add metadata to the full q-value results
-    psub = add_metadata_to_sigdf(potus, n_ctrl, n_case, n, p, 'otu')
-    psubgenus = add_metadata_to_sigdf(pgenus, n_ctrl, n_case, n, p, 'genus')
-    psub = pd.concat((psub, psubgenus))
+    return sigdf
 
-    return sigdf, psub
-
-def parallel_process((df, genusdf, ctrl, case, n_ctrl, n_case, n, p)):
+def get_tophits_rejected(psubgenus, effects):
     """
-    Returns:
+    Get the number of "top hits" which were rejected. Top hits are defined
+    by the 'effects' dataframe. The different numbers of top hits
+    iterated over and the alpha cutoff are hard-coded in this function.
 
-    sigdf : columns alpha  n_sig taxa_level  n_ctrl  n_case  total_n  perc_case
-    psub : 'p', 'test_stat', 'q', 'taxa_level', 'n_ctrl', 'n_case',
-           'total_n', 'perc_case'
+    Parameters
+    ----------
+    psubgenus : pandas DataFrame
+        genus names in index, has column 'q'
+    effects : pandas DataFrame
+        dataframe with the "true" populatin effects. Has column 'rank_snr'
+        which ranks genera by their signal to noise ratio. Has column
+        'denovo' which contains the genus name (e.g. 'g__Ruminococcus')
+
+    Returns
+    -------
+    tophits_df : pandas DataFrame
+        has columns 'n_top_hits' and 'n_rejected'
+    """
+    # Hard code these
+    alpha = 0.05
+    ntophits = [3, 5, 10]
+
+    # Add the short OTU name to dataframe (long OTU IDs are currently index)
+    psubgenus['denovo'] = (
+        psubgenus
+            .reset_index()
+            ['index']
+            .str.rsplit(';', 1)
+            .str[1]
+            .values
+        )
+    n_reject = []
+    for n in ntophits:
+        # Define the top hits (genera)
+        top_genera = effects.query('rank_snr < @n')['denovo'].tolist()
+
+        # Get the qvalues for the top hits
+        top_qvals = psubgenus.query('denovo == @top_genera')
+
+        # Count how many were rejected
+        n_reject.append(sum(top_qvals['q'] <= alpha))
+
+    ## Put both lists into a dataframe
+    tophits_df = pd.DataFrame({'n_top_hits': ntophits,
+                              'n_rejected': n_reject})
+    return tophits_df
+
+def parallel_process((df, genusdf, effects,
+                      ctrl, case, n_ctrl, n_case, total_n, p)):
+    """
+    Parameters
+    ----------
+    df : pandas DataFrame
+    genusdf : pandas DataFrame
+        OTU tables with OTUs/genera in columns and samples in index
+
+    ctrl, case : list
+        list of sample IDs, contains all control and case samples
+
+    n_ctrl, n_case : int
+        number of control and case samples to subsample to
+
+    total_n : int
+        number of total samples in the FMT arm. Only used to label results.
+
+    p : float
+        percent of total_n which are case. Only used to label results.
+
+    effects : pandas DataFrame
+        dataframe with the "true" effect size of each OTU in the population.
+        This dataframe contains only results for genus level (genera are
+        labeled in the column 'denovo').
+
+    Returns
+    -------
+    sigdf : pandas DataFrame
+        columns alpha  n_sig taxa_level  n_ctrl  n_case  total_n  perc_case
+    tophitsdf : pandas DataFrame
+        columns n_top_hits n_rejected (and all the other simulation setting
+        columns, as above)
     """
 
-    print(n, p, n_case, n_ctrl)
+    print(total_n, p, n_case, n_ctrl)
     ## Get the pvalues for subsampled OTU and genus-level
     psub, psubgenus = subsample_and_get_pvals(
         df, genusdf, ctrl, case, n_ctrl, n_case)
 
-    ## Format results
-    sigdf, psub = format_sig_results(psub, psubgenus, n_ctrl, n_case, n, p)
-    return sigdf, psub
+    ## Get total number significant
+    sigdf = get_nsig(psub, psubgenus, n_ctrl, n_case, total_n, p)
+
+    ## Grab number of significant top hits (genus level only)
+    tophitsdf = get_tophits_rejected(psubgenus, effects)
+    tophitsdf = add_metadata_to_sigdf(
+        tophitsdf, n_ctrl, n_case, total_n, p, 'genus')
+
+    return sigdf, tophitsdf
 
 def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
     """
@@ -215,7 +297,7 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
         dataframe with the number of significant hits (q < 0.05) per
         simulation setting.
     """
-    all_qvals = []
+    all_tophits = []
     all_nsigs = []
     for r in range(n_reps):
         print(r)
@@ -225,10 +307,12 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
             fotu = 'data/clean/' + dataset + '.otu_table.feather'
             fgenus = 'data/clean/' + dataset + '.otu_table.genus.feather'
             fmeta = 'data/clean/' + dataset + '.metadata.feather'
+            feffects = 'data/analysis/population_effects.' + dataset + '.txt'
 
             df = read_dataframe(fotu)
             genusdf = read_dataframe(fgenus)
             meta = read_dataframe(fmeta)
+            effects = pd.read_csv(feffects, sep='\t')
 
             ## Set up cases and controls
             ctrl_lbl = CTRLS[dataset]
@@ -246,6 +330,7 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
                 parallel_process,
                 zip(len(N)*[df],
                     len(N)*[genusdf],
+                    len(N)*[effects],
                     len(N)*[ctrl],
                     len(N)*[case],
                     N_CTRL, N_CASE,
@@ -256,15 +341,14 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
 
             ## Put the parallelized results into two dataframes
             # sig_results and qval_results are both lists of dataframes
-            sig_results = pd.concat([i[0] for i in allres], ignore_index=True)
-            qval_results = (
-                pd.concat([i[1] for i in allres])
-                .reset_index()
-                .rename(columns={'index': 'otu'})
+            nsig_results = (
+                pd.concat([i[0] for i in allres], ignore_index=True)
+                )
+            tophits_results = (
+                pd.concat([i[1] for i in allres], ignore_index=True)
                 )
 
-            ## Calculate pvalues/nsig/etc with original dataset,
-            ## and add that to the results
+            ## Calculate nsig with original dataset and add to results
             potus = compare_otus_teststat(
                 df, ctrl, case,
                 method='kruskal-wallis', multi_comp='fdr')
@@ -273,63 +357,43 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
                 method='kruskal-wallis', multi_comp='fdr')
 
             # Format
-            sigall, pvalsall = format_sig_results(
+            sigall = get_nsig(
                 potus, pgenus,
                 len(ctrl), len(case),
-                len(ctrl)+len(case), np.nan)
-            pvalsall = pvalsall.reset_index().rename(columns={'index': 'otu'})
-            pvalsall = pvalsall.rename(columns={'p': 'p_allsamples',
-                                        'q': 'q_allsamples',
-                                        'test_stat': 'test_stat_allsamples'})
+                len(ctrl)+len(case),
+                np.nan)
             sigall = sigall.rename(columns={'n_sig': 'n_sig_allsamples'})
 
             # Concatenate with the other results full results, so that each
             # combination of parameters has additional columns with the results
             # for all samples
-
-            # This merges on the common columns 'otu' and 'taxa_level'
-            qval_results = pd.merge(
-                pvalsall[['otu', 'taxa_level', 'p_allsamples', 'q_allsamples']],
-                qval_results
-            )
-
-            sig_results = pd.merge(
+            nsig_results = pd.merge(
                 sigall[['alpha', 'n_sig_allsamples', 'taxa_level']],
-                sig_results
+                nsig_results
             )
 
             ## Add study label
-            qval_results['study'] = dataset
-            sig_results['study'] = dataset
+            nsig_results['study'] = dataset
+            tophits_results['study'] = dataset
 
             ## Add rep label
-            qval_results['rep'] = r
-            sig_results['rep'] = r
+            nsig_results['rep'] = r
+            tophits_results['rep'] = r
 
-            all_qvals.append(qval_results)
-            all_nsigs.append(sig_results)
+            all_nsigs.append(nsig_results)
+            all_tophits.append(tophits_results)
 
     ## Finally, combine all datasets' results together
-    all_qvals_df = pd.concat(all_qvals)
+    all_tophits_df = pd.concat(all_tophits)
     all_nsigs_df = pd.concat(all_nsigs)
 
-    ## Prepare the qvalues dataframe for writing
-    ## Remove the long OTU strings which are too large for feather to handle
-    all_qvals_df['denovo'] = all_qvals_df['otu'].str.rsplit(';', 1).str[1]
-    all_qvals_df = all_qvals_df.drop('otu', axis=1)
-
-    return all_qvals_df, all_nsigs_df
+    return all_tophits_df, all_nsigs_df
 
 #################  Hard coded values and parameters #################
-n_reps = 50
+n_reps = 2
 
-# This file is too large to write
-#fout_qvalues = 'power_simulation.otu_qvalues.{}_reps.denovo_otu_only.feather'.format(n_reps)
 fout_nsig = 'data/analysis/power_simulation.n_sig.{}_reps.txt'.format(n_reps)
-
 fout_tophits = 'data/analysis/power_simulation.top_hits_sig.{}_reps.txt'.format(n_reps)
-# This file can probably just be calculated from the top hits file above
-fout_power = 'data/analysis/power_simulation.power.{}_reps.txt'.format(n_reps)
 
 np.random.seed(12345)
 
@@ -339,77 +403,27 @@ totalNs = [10, 25, 50, 100, 150]
 perc_success = [0.1, 0.25, 0.5, 0.75, 0.9]
 
 ### DEBUGGING ONLY
-#totalNs = [10, 25]#, 50, 100, 150, 200]
-#perc_success = [0.1, 0.25]#, 0.5, 0.75, 0.9]
+totalNs = [100, 50]#, 50, 100, 150, 200]
+perc_success = [0.1, 0.25]#, 0.5, 0.75, 0.9]
 
 # Note: different datasets represent different "expected effect sizes"
-DATASETS = ['cdi_schubert', 'crc_baxter', 'ibd_papa', 'ob_goodrich']
+#DATASETS = ['cdi_schubert', 'crc_baxter', 'ibd_papa', 'ob_goodrich']
+DATASETS = ['cdi_schubert', 'crc_baxter']#, 'ibd_papa', 'ob_goodrich']
+
 CTRLS = {'cdi_schubert': 'H',
          'crc_baxter': 'H',
          'ibd_papa': 'nonIBD',
          'ob_goodrich': 'H'}
 CASES = {'cdi_schubert': 'CDI',
          'crc_baxter': 'CRC',
-         'ibd_papa': ['CD', 'UC'],
+         'ibd_papa': 'IBD',
          'ob_goodrich': 'OB'}
 
 ################# SIMULATION #################
 
-all_qvals_df, all_nsigs_df = run_simulation(
+all_tophits_df, all_nsigs_df = run_simulation(
     n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success)
 
 ## Write to files
-# This file is too large to write :(
-#feather.write_dataframe(all_qvals_df, fout_qvalues)
 all_nsigs_df.to_csv(fout_nsig, sep='\t', index=False)
-
-################# TOP HITS CALCULATION #################
-
-## Calculate the number of "top hits" which are significant
-alpha = 0.05
-NTOPHITS = [3, 5, 10]
-
-POWER = []
-NSIG = []
-
-for d in DATASETS:
-    # Read in file with the genus ranks, based on signal to noise
-    feffects = 'data/analysis/population_effects.{}.txt'.format(d)
-    effects = pd.read_csv(feffects, sep='\t')
-
-    sub_qvals = all_qvals_df.query('study == @d')
-
-    for ntophits in NTOPHITS:
-        # Define the top hits
-        top_otus = effects.query('rank_snr < @ntophits')['denovo'].tolist()
-
-        # Get the qvalues from each simulation setting
-        top_qvals = sub_qvals.query('denovo == @top_otus')
-
-        # Get rejected OTUs
-        top_qvals.loc[top_qvals.index, 'rejected'] = top_qvals.loc[top_qvals.index, 'q'] <= alpha
-
-        # Calculate number of top hits rejected in each simulation setting
-        top_qvals = top_qvals.groupby(['total_n', 'perc_case', 'rep'])['rejected'].sum().reset_index()
-
-        # How many and what percentage of those simulations were "powered"
-        powerthresh = np.ceil(0.5*ntophits)
-        top_qvals['rep_powered'] = top_qvals['rejected'] > powerthresh
-        power = top_qvals.groupby(['total_n', 'perc_case'])['rep_powered'].sum().reset_index()
-        power = power.rename(columns={'rep_powered': 'n_reps_powered'})
-        power['power'] = power['n_reps_powered'] / float(n_reps)
-
-        # Add study ID and append to list
-        power['study'] = d
-        power['n_top_hits'] = ntophits
-        top_qvals['study'] = d
-        top_qvals['n_top_hits'] = ntophits
-
-        POWER.append(power)
-        NSIG.append(top_qvals)
-
-powerdf = pd.concat(POWER)
-nsigdf = pd.concat(NSIG)
-
-nsigdf.to_csv(fout_tophits, index=False, sep='\t')
-powerdf.to_csv(fout_power, index=False, sep='\t')
+all_tophits_df.to_csv(fout_tophits, sep='\t', index=False)
