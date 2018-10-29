@@ -390,7 +390,7 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
     return all_tophits_df, all_nsigs_df
 
 #################  Hard coded values and parameters #################
-n_reps = 2
+n_reps = 50
 
 fout_nsig = 'data/analysis/power_simulation.n_sig.{}_reps.txt'.format(n_reps)
 fout_tophits = 'data/analysis/power_simulation.top_hits_sig.{}_reps.txt'.format(n_reps)
@@ -403,12 +403,11 @@ totalNs = [10, 25, 50, 100, 150]
 perc_success = [0.1, 0.25, 0.5, 0.75, 0.9]
 
 ### DEBUGGING ONLY
-totalNs = [100, 50]#, 50, 100, 150, 200]
-perc_success = [0.1, 0.25]#, 0.5, 0.75, 0.9]
+#totalNs = [100, 50]#, 50, 100, 150, 200]
+#perc_success = [0.1, 0.25]#, 0.5, 0.75, 0.9]
 
 # Note: different datasets represent different "expected effect sizes"
-#DATASETS = ['cdi_schubert', 'crc_baxter', 'ibd_papa', 'ob_goodrich']
-DATASETS = ['cdi_schubert', 'crc_baxter']#, 'ibd_papa', 'ob_goodrich']
+DATASETS = ['cdi_schubert', 'crc_baxter', 'ibd_papa', 'ob_goodrich']
 
 CTRLS = {'cdi_schubert': 'H',
          'crc_baxter': 'H',
