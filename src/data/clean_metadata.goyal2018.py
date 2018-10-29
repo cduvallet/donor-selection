@@ -56,6 +56,16 @@ time_dict = {'W': '1_week',
 
 meta['time_point'] = meta['sample_type'].apply(lambda x: time_dict[x])
 
+# Add exception flag in the time_point column for the duplicate samples
+# that we shouldn't be considering.
+# See the 2018-10-01.goyal2018.first_exploration.ipynb notebook
+# for thought process and explanation
+dup_samples = ['FMT.01.007.P', 'FMT.01.029.D1', 'FMT.01.022.W',
+               'FMT.01.005.6M', 'FMT.01.010.PA', 'FMT.01.024.P1',
+               'FMT.01.024.D1', 'FMT.01.024.6M']
+dup_idx = meta.query('sample_alias == @dup_samples').index
+meta.loc[dup_idx, 'time_point'] = 'duplicate_sample'
+
 ## Clean up clinical metadata
 outcomes['patient_id'] = (
     outcomes['Patient # dds 1/26/15'].str.split(expand=True)[0])

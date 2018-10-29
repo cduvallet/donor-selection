@@ -124,17 +124,18 @@ def calculate_butyrate_abundance(tidydf, but_gg, dataset):
 
     Returns
     -------
-    donor_but : pandas DataFrame
+    all_but : pandas DataFrame
         dataframe with the dataset's respective metadata columns plus
         a column called "butyrate_abun" with the total abundance of
-        OTUs in but_gg list per donor sample
+        OTUs in but_gg list per sample (including all samples, not just
+        donors)
     """
     # The groupby is mostly to keep track of other metadata of interest
     if dataset == "goyal2018":
-        donor_but = (
+        all_but = (
             tidydf
                 .query('otu_id_gg == @but_gg')
-                .query('(sample_type == "D") | (sample_type == "D2")')
+                #.query('(sample_type == "D") | (sample_type == "D2")')
                 .groupby(['sample_id', 'patient_id',
                           'sample_type', 'time_point',
                           'remission_m1', 'response_m1',
@@ -144,10 +145,10 @@ def calculate_butyrate_abundance(tidydf, but_gg, dataset):
             ).reset_index()
 
     elif dataset == "jacob2017":
-        donor_but = (
+        all_but = (
             tidydf
                 .query('otu_id_gg == @but_gg')
-                .query('donor_patient == "donor"')
+                #.query('donor_patient == "donor"')
                 .groupby(['sample_id', 'sample_type',
                           'donor_patient', 'remission_w4',
                           'response_w4', 'patient_id'])
@@ -156,34 +157,36 @@ def calculate_butyrate_abundance(tidydf, but_gg, dataset):
             ).reset_index()
 
     elif dataset == "kump2018":
-        donor_but = (
+        all_but = (
             tidydf
                 .query('otu_id_gg == @but_gg')
-                .query('Sampletype == "Donorstool"')
+                #.query('Sampletype == "Donorstool"')
                 .groupby(['sample_id', 'DonorID', 'PatientID',
-                          'Sampling_day', 'Response'])
+                          'Sampling_day', 'Sampletype', 'prepost',
+                          'Response'])
                 .sum()
                 ['rel_abun']
             ).reset_index()
         # Kump 2018 has multiple days per donor, so also get the
         # average abundance across all donor samples
         avg_but = (
-            donor_but
+            all_but
+                .query('Sampletype == "Donorstool"')
                 .groupby(['DonorID', 'Response', 'PatientID'])
                 .mean()
                 ['rel_abun']
             ).reset_index()
         avg_but['Sampling_day'] = 'average'
-        donor_but = pd.concat((donor_but, avg_but), sort=False)
+        all_but = pd.concat((all_but, avg_but), sort=False)
 
     else:
         raise ValueError('Unrecognized dataset')
 
-    donor_but = donor_but.rename(columns={'rel_abun': 'butyrate_abun'})
+    all_but = all_but.rename(columns={'rel_abun': 'butyrate_abun'})
 
-    return donor_but
+    return all_but
 
-### 
+###
 
 datasets = ['jacob2017', 'kump2018', 'goyal2018']
 
