@@ -3,9 +3,15 @@
 all: data
 
 ## Process data
-data: tidy metadata
+data: tidy_ibd metadata_ibd bn10
 
-# Need to figure out/whether to include these steps in the Makefile.
+
+################################################
+################### IBD DATA ###################
+################################################
+
+
+# Need to figure out/whether to include the qiime2 steps in the Makefile.
 # Currently, I'm keeping things separate per dataset. For the most
 # part, I'm trying to make datasetID.qiime_commands.sh that have all
 # the QIIME 2 commands.
@@ -63,7 +69,7 @@ $(goyal_tidy): src/data/add_taxonomy_and_tidy_table.py # To add: OTU table and t
 		      --tidy-file $(goyal_tidy)
 
 
-tidy: $(kump_tidy) $(jacob_tidy) $(goyal_tidy)
+tidy_ibd: $(kump_tidy) $(jacob_tidy) $(goyal_tidy)
 
 ## Metadata files
 
@@ -90,4 +96,23 @@ raw_jacob_meta := data/raw/jacob2017/FMT\ Clinical\ Response\ Remission.xlsx \
 $(jacob_meta): src/data/clean_metadata.jacob2017.py $(raw_jacob_meta)
 	python $<
 
-metadata: $(kump_meta) $(jacob_meta) $(goyal_meta)
+metadata_ibd: $(kump_meta) $(jacob_meta) $(goyal_meta)
+
+################################################
+################## BN 10 DATA ##################
+################################################
+
+raw_bn10 := data/raw/bn10/BN10_newIDs.csv
+tidy_bn10 := data/clean/bn10.tidy_metabolomics.feather
+
+$(raw_bn10):
+	echo -e "Need to download raw BN10 data from internet"
+
+$(tidy_bn10): src/data/bn10.tidy_data.py $(raw_bn10)
+	python $< $(raw_bn10) $@
+
+bn10: $(tidy_bn10)
+
+################################################
+################### FIGURES ####################
+################################################
