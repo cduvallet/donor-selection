@@ -1,5 +1,13 @@
 ## Makefile for donor selection paper
 
+## Some Makefile notes
+# Automatic variables: https://www.gnu.org/software/make/manual/html_node/Automatic-Variables.html#Automatic-Variables
+# $@ is the target file
+# $* is the stem that files have in common
+# $< is the first file listed in the dependencies (usually a .py or .ipynb file)
+# Multiple targets for one rule: https://www.gnu.org/software/automake/manual/html_node/Multiple-Outputs.html
+
+
 all: data
 
 ## Process data
@@ -99,6 +107,28 @@ $(jacob_meta): src/data/clean_metadata.jacob2017.py $(raw_jacob_meta)
 metadata_ibd: $(kump_meta) $(jacob_meta) $(goyal_meta)
 
 ################################################
+############## IBD BUTYRATE DATA ###############
+################################################
+
+# These commands grab the butyrate producers from the IBD datasets
+# Note: as of Nov 14, I haven't checked or debugged these!
+
+but_jacob := data/analysis/butyrate_producers.jacob2017.txt
+but_goyal := data/analysis/butyrate_producers.goyal2018.txt
+but_kump := data/analysis/butyrate_producers.kump2018.txt
+
+but_script := src/analysis/calculate_butyrate_producer_abundance.py
+
+$(but_jacob): $(but_script) $(jacob_meta) $(jacob_tidy)
+	python $< jacob2017
+
+$(but_goyal): $(but_script) $(goyal_meta) $(goyal_tidy)
+	python $< goyal2018
+
+$(but_kump): $(but_script) $(kump_meta) $(kump_tidy)
+	python $< kump2018
+
+################################################
 ################## BN 10 DATA ##################
 ################################################
 
@@ -114,5 +144,44 @@ $(tidy_bn10): src/data/bn10.tidy_data.py $(raw_bn10)
 bn10: $(tidy_bn10)
 
 ################################################
+################ BN10 ANALYSIS #################
+################################################
+
+#TODO - should make a script that calculates the ratios and writes a file with each donor's ranks. Basically the final dataframe I can use to plot all three figures for donor ranking...
+
+################################################
+################## POWER SIM  ##################
+################################################
+
+#TODO
+
+################################################
 ################### FIGURES ####################
 ################################################
+
+## IBD case study
+
+fig_donor_butyrate_abun := figures/final/fig2.donor_butyrate_abun.png
+fig_butyrate_response := figures/final/fig2.butyrate_vs_response.png
+fig_ibd_notebook_final := src/figures/figures.ibd_donors_butyrate_producers.ipynb
+fig_ibd_notebook_src := src/exploration/2018-10-26.figures.ibd_donors_butyrate_producers.ipynb
+
+fig2: $(fig_donor_butyrate_abun) $(fig_butyrate_response)
+
+$(fig_ibd_notebook): $(fig_ibd_notebook_src)
+	cp $< $@
+
+$(fig_donor_butyrate_abun): $(fig_ibd_notebook) $(but_jacob) $(but_goyal) $(but_kump)
+	jupyter nbconvert --execute $<
+
+# Same notebook makes both figures
+$(fig_butyrate_response): $(fig_donor_butyrate_abun)
+	@if test -f $@; then :; else \
+	  rm -f $<; \
+	  make $<; \
+	fi
+
+## Liver cirrhosis case study (BN10 metabolomics data)
+fig_distribution_mtabs := figures/final/fig3.scfas_bile_acid_conversion_bn10_donors.distribution.png
+fig_scfa_bile_acid := figures/final/fig3.scfas_bile_acid_conversion_bn10_donors.ranked.png
+fig_donor_ranks := figures/final/fig3.scfas_bile_acid_conversion_bn10_donors.bile_acid_vs_scfa.png

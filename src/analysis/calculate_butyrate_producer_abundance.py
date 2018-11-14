@@ -5,6 +5,7 @@ three IBD datasets.
 """
 
 import pandas as pd
+import argparse
 
 
 def get_genera():
@@ -187,10 +188,13 @@ def calculate_butyrate_abundance(tidydf, but_gg, dataset):
     return all_but
 
 ###
+if __name__ == "__main__":
 
-datasets = ['jacob2017', 'kump2018', 'goyal2018']
+    p = argparse.ArgumentParser()
+    p.add_argument('d',
+        help='dataset id (file names are defined in the script)')
+    d = p.parse_args().d
 
-for d in datasets:
     print(d)
     fmeta = 'data/clean/{}.metadata.txt'.format(d)
     ftidy = 'data/clean/{}.tidy_otu_w_taxonomy.txt'.format(d)
