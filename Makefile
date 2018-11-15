@@ -8,7 +8,7 @@
 # Multiple targets for one rule: https://www.gnu.org/software/automake/manual/html_node/Multiple-Outputs.html
 
 
-all: data
+all: data figures
 
 ## Process data
 data: tidy_ibd metadata_ibd bn10
@@ -147,7 +147,10 @@ bn10: $(tidy_bn10)
 ################ BN10 ANALYSIS #################
 ################################################
 
-#TODO - should make a script that calculates the ratios and writes a file with each donor's ranks. Basically the final dataframe I can use to plot all three figures for donor ranking...
+donor_ranks := data/analysis/bn10_metabolomics.donor_ranks.txt
+
+$(donor_ranks): src/analysis/calculate_donor_ranks.py $(tidy_bn10)
+	python $< $(tidy_bn10) $@
 
 ################################################
 ################## POWER SIM  ##################
@@ -159,19 +162,22 @@ bn10: $(tidy_bn10)
 ################### FIGURES ####################
 ################################################
 
-## IBD case study
+figures: fig2 fig3
 
+## IBD case study
+# Figures
 fig_donor_butyrate_abun := figures/final/fig2.donor_butyrate_abun.png
 fig_butyrate_response := figures/final/fig2.butyrate_vs_response.png
-fig_ibd_notebook_final := src/figures/figures.ibd_donors_butyrate_producers.ipynb
-fig_ibd_notebook_src := src/exploration/2018-10-26.figures.ibd_donors_butyrate_producers.ipynb
+# Notebooks
+ibd_fig_notebook_final := src/figures/figures.ibd_donors_butyrate_producers.ipynb
+ibd_fig_notebook_src := src/exploration/2018-10-26.figures.ibd_donors_butyrate_producers.ipynb
 
 fig2: $(fig_donor_butyrate_abun) $(fig_butyrate_response)
 
-$(fig_ibd_notebook): $(fig_ibd_notebook_src)
+$(ibd_fig_notebook_final): $(ibd_fig_notebook_src)
 	cp $< $@
 
-$(fig_donor_butyrate_abun): $(fig_ibd_notebook) $(but_jacob) $(but_goyal) $(but_kump)
+$(fig_donor_butyrate_abun): $(ibd_fig_notebook_final) $(but_jacob) $(but_goyal) $(but_kump)
 	jupyter nbconvert --execute $<
 
 # Same notebook makes both figures
@@ -182,6 +188,33 @@ $(fig_butyrate_response): $(fig_donor_butyrate_abun)
 	fi
 
 ## Liver cirrhosis case study (BN10 metabolomics data)
+# Figures
 fig_distribution_mtabs := figures/final/fig3.scfas_bile_acid_conversion_bn10_donors.distribution.png
 fig_scfa_bile_acid := figures/final/fig3.scfas_bile_acid_conversion_bn10_donors.ranked.png
 fig_donor_ranks := figures/final/fig3.scfas_bile_acid_conversion_bn10_donors.bile_acid_vs_scfa.png
+
+# Notebooks
+bn10_fig_notebook_src := src/exploration/2018-11-15.figures.liver_cirrhosis_bn10_metabolomics.ipynb
+bn10_fig_notebook_final := src/figures/figures.liver_cirrhosis_bn10_metabolomics_donors.ipynb
+
+fig3: $(fig_distribution_mtabs) $(fig_scfa_bile_acid) $(fig_donor_ranks)
+
+$(bn10_fig_notebook_final): $(bn10_fig_notebook_src)
+	cp $< $@
+
+$(fig_distribution_mtabs): $(bn10_fig_notebook_final) $(tidy_bn10) $(donor_ranks)
+	jupyter nbconvert --execute $<
+
+# Same notebook makes all panels
+$(fig_scfa_bile_acid): $(fig_distribution_mtabs)
+	@if test -f $@; then :; else \
+	  rm -f $<; \
+	  make $<; \
+	fi
+
+# Same notebook makes all panels
+$(fig_donor_ranks): $(fig_distribution_mtabs)
+	@if test -f $@; then :; else \
+	  rm -f $<; \
+	  make $<; \
+	fi

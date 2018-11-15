@@ -42,3 +42,6 @@ hsiao.taxonomy.tsv
 
 # Too large
 16_1028_BN10_openbiome_MxP.xlsx
+
+# Intermediate figures
+figures/analysis/*.png
