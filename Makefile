@@ -208,8 +208,6 @@ nsig := data/analysis/power_simulation.n_sig.$(nreps)_reps.txt
 tophits := data/analysis/power_simulation.top_hits_sig.$(nreps)_reps.txt
 powersim_src := src/analysis/power_simulation.py
 
-#TODO: need to rewrite power_simulation.py so that it doesn't use the raw OTU table
-
 # This script has all the datasets and input files hard-coded
 # It also makes the data/analysis/population_effects.dataset.txt files,
 # but I won't put these in the makefile for simplicity.

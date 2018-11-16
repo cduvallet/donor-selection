@@ -9,6 +9,7 @@ differentially abundant OTUs.
 import pandas as pd
 import numpy as np
 import feather
+import argparse
 
 import multiprocessing
 
@@ -115,23 +116,17 @@ def make_param_combos(totalNs, perc_success, ctrl, case):
 
     return N, P, N_CTRL, N_CASE
 
-def subsample_and_get_pvals(df, genusdf, ctrl, case, n_ctrl, n_case):
+def subsample_and_get_pvals(genusdf, ctrl, case, n_ctrl, n_case):
     # Subsample our cases and controls
     subctrl = np.random.choice(ctrl, size=n_ctrl)
     subcase = np.random.choice(case, size=n_case)
-
-    # Calculate qvalues, OTU-level
-    # For now, let's make it the same as genus df
-    psub = compare_otus_teststat(
-        df, subctrl, subcase,
-        method='kruskal-wallis', multi_comp='fdr')
 
     # Calculate qvalues, genus-level
     psubgenus = compare_otus_teststat(
         genusdf, subctrl, subcase,
         method='kruskal-wallis', multi_comp='fdr')
 
-    return psub, psubgenus
+    return psubgenus
 
 def get_significant(pvals, alphas=[0.05, 0.1, 0.25]):
     """
@@ -152,23 +147,18 @@ def add_metadata_to_sigdf(sigdf, n_ctrl, n_case, n, p, taxa_level):
     sigdf['perc_case'] = p
     return sigdf
 
-def get_nsig(potus, pgenus, n_ctrl, n_case, n, p):
+def get_nsig(pgenus, n_ctrl, n_case, n, p):
     """
     Calculates number of OTUs/genera significant at different
     taxonomic levels. Adds metadata (i.e. simulations settings)
     to the output dataframe.
     """
 
-    # Calculate number OTUs/genera significant at different levels
-    sigdf = get_significant(potus)
-    sigdf = add_metadata_to_sigdf(sigdf, n_ctrl, n_case, n, p, 'otu')
-
+    # Calculate number genera significant at different levels
     genussig = get_significant(pgenus)
     genussig = add_metadata_to_sigdf(genussig, n_ctrl, n_case, n, p, 'genus')
 
-    sigdf = pd.concat((sigdf, genussig), ignore_index=True)
-
-    return sigdf
+    return genussig
 
 def get_tophits_rejected(psubgenus, effects):
     """
@@ -219,14 +209,13 @@ def get_tophits_rejected(psubgenus, effects):
                               'n_rejected': n_reject})
     return tophits_df
 
-def parallel_process((df, genusdf, effects,
+def parallel_process((genusdf, effects,
                       ctrl, case, n_ctrl, n_case, total_n, p)):
     """
     Parameters
     ----------
-    df : pandas DataFrame
     genusdf : pandas DataFrame
-        OTU tables with OTUs/genera in columns and samples in index
+        OTU tables with genera in columns and samples in index
 
     ctrl, case : list
         list of sample IDs, contains all control and case samples
@@ -256,11 +245,11 @@ def parallel_process((df, genusdf, effects,
 
     print(total_n, p, n_case, n_ctrl)
     ## Get the pvalues for subsampled OTU and genus-level
-    psub, psubgenus = subsample_and_get_pvals(
-        df, genusdf, ctrl, case, n_ctrl, n_case)
+    psubgenus = subsample_and_get_pvals(
+        genusdf, ctrl, case, n_ctrl, n_case)
 
     ## Get total number significant
-    sigdf = get_nsig(psub, psubgenus, n_ctrl, n_case, total_n, p)
+    sigdf = get_nsig(psubgenus, n_ctrl, n_case, total_n, p)
 
     ## Grab number of significant top hits (genus level only)
     tophitsdf = get_tophits_rejected(psubgenus, effects)
@@ -304,12 +293,10 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
         for dataset in DATASETS:
             print(dataset)
             ## Read in dataset
-            fotu = 'data/clean/' + dataset + '.otu_table.feather'
             fgenus = 'data/clean/' + dataset + '.otu_table.genus.feather'
             fmeta = 'data/clean/' + dataset + '.metadata.feather'
             feffects = 'data/analysis/population_effects.' + dataset + '.txt'
 
-            df = read_dataframe(fotu)
             genusdf = read_dataframe(fgenus)
             meta = read_dataframe(fmeta)
             effects = pd.read_csv(feffects, sep='\t')
@@ -328,8 +315,7 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
             p = multiprocessing.Pool()
             allres = p.map(
                 parallel_process,
-                zip(len(N)*[df],
-                    len(N)*[genusdf],
+                zip(len(N)*[genusdf],
                     len(N)*[effects],
                     len(N)*[ctrl],
                     len(N)*[case],
@@ -349,16 +335,13 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
                 )
 
             ## Calculate nsig with original dataset and add to results
-            potus = compare_otus_teststat(
-                df, ctrl, case,
-                method='kruskal-wallis', multi_comp='fdr')
             pgenus = compare_otus_teststat(
                 genusdf, ctrl, case,
                 method='kruskal-wallis', multi_comp='fdr')
 
             # Format
             sigall = get_nsig(
-                potus, pgenus,
+                pgenus,
                 len(ctrl), len(case),
                 len(ctrl)+len(case),
                 np.nan)
@@ -390,7 +373,7 @@ def run_simulation(n_reps, DATASETS, CTRLS, CASES, totalNs, perc_success):
     return all_tophits_df, all_nsigs_df
 
 p = argparse.ArgumentParser()
-p.add_argument('--nreps',
+p.add_argument('--nreps', type=int,
     help='number of simulation reps per parameter setting')
 p.add_argument('--fout-nsig',
     help='outfile with the number significant per parameter setting per rep')
@@ -399,7 +382,7 @@ p.add_argument('--fout-tophits',
           + 'setting per rep per total N top hits')
 args = p.parse_args()
 
-nresp = args.nreps
+n_reps = args.nreps
 fout_nsig = args.fout_nsig
 fout_tophits = args.fout_tophits
 np.random.seed(12345)
