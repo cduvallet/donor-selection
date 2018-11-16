@@ -29,6 +29,8 @@ import feather
 import copy
 import os
 
+import argparse
+
 def define_file_paths(dataset, rawdir):
     """
     Returns the file path for the otu table and metadata
@@ -291,20 +293,29 @@ def define_clean_paths(cleandir, dataset):
 
     return otupath, genuspath, metapath
 
-# Define data directories, relative to the current path
-rawdir = 'data/raw'
-cleandir = 'data/clean'
+if __name__ == "__main__":
+    p = argparse.ArgumentParser()
+    p.add_argument('dataset')
+    args = p.parse_args()
 
-# Define cleaning parameters
-n_reads_otu = 10
-n_reads_sample = 100
-perc_samples = 0.01
+    # Define data directories, relative to the current path
+    rawdir = 'data/raw'
+    cleandir = 'data/clean'
 
-# We're going to be super noobs and just hard-code the datasets in here for now.
-datasets = ['cdi_schubert', 'crc_baxter', 'ibd_alm', 'ob_goodrich']
-conditions = [None, None, None, {'n_sample': [0]}]
+    # Define cleaning parameters
+    n_reads_otu = 10
+    n_reads_sample = 100
+    perc_samples = 0.01
 
-for dataset, condition in zip(datasets, conditions):
+    # Condition says which samples to keep based on a metadata column
+    conditions = {'cdi_schubert': None,
+                  'crc_baxter': None,
+                  'ibd_alm': None,
+                  'ob_goodrich': {'n_sample': [0]}
+                  }
+
+    dataset = args.dataset
+    condition = conditions[dataset]
     print(dataset)
     # Read in data and metadata
     df, meta = read_raw_files(*define_file_paths(dataset, rawdir))

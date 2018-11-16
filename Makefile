@@ -15,7 +15,7 @@ data: tidy_ibd metadata_ibd bn10
 
 
 ################################################
-################### IBD DATA ###################
+############### IBD FMT DATASETS ###############
 ################################################
 
 
@@ -107,7 +107,7 @@ $(jacob_meta): src/data/clean_metadata.jacob2017.py $(raw_jacob_meta)
 metadata_ibd: $(kump_meta) $(jacob_meta) $(goyal_meta)
 
 ################################################
-############## IBD BUTYRATE DATA ###############
+############ IBD BUTYRATE ANALYSIS #############
 ################################################
 
 # These commands grab the butyrate producers from the IBD datasets
@@ -153,10 +153,74 @@ $(donor_ranks): src/analysis/calculate_donor_ranks.py $(tidy_bn10)
 	python $< $(tidy_bn10) $@
 
 ################################################
-################## POWER SIM  ##################
+############# POWER SIM DATASETS  ##############
 ################################################
 
-#TODO
+download_src := src/data/download_case_control.sh
+clean_src := src/data/clean_case_control_datasets.py
+
+D = cdi_schubert
+cdi_raw_otu := data/raw/$(D)_results/RDP/$(D).otu_table.100.denovo.rdp_assigned
+cdi_raw_meta := data/raw/$(D)_results/$(D).metadata.txt
+cdi_clean_otu := data/clean/$(D).otu_table.genus.feather
+cdi_clean_meta := data/clean/$(D).metadata.feather
+
+# This also downloads the metadata file, just FYI
+$(cdi_raw_otu): $(download_src)
+	$< cdi_schubert
+
+# This also cleans the metadata file, just FYI
+$(cdi_clean_otu): $(clean_src) $(cdi_raw_otu)
+	$< cdi_schubert
+
+D = crc_baxter
+crc_raw_otu := data/raw/$(D)_results/RDP/$(D).otu_table.100.denovo.rdp_assigned
+crc_raw_meta := data/raw/$(D)_results/$(D).metadata.txt
+crc_clean_otu := data/clean/$(D).otu_table.genus.feather
+crc_clean_meta := data/clean/$(D).metadata.feather
+
+$(crc_raw_otu): $(download_src)
+	$< crc_baxter
+
+$(crc_clean_otu): $(clean_src) $(crc_raw_otu)
+	$< crc_baxter
+
+D = ob_goodrich
+ob_raw_otu := data/raw/$(D)_results/RDP/$(D).otu_table.100.denovo.rdp_assigned
+ob_raw_meta := data/raw/$(D)_results/$(D).metadata.txt
+ob_clean_otu := data/clean/$(D).otu_table.genus.feather
+ob_clean_meta := data/clean/$(D).metadata.feather
+
+$(ob_raw_otu): $(download_src)
+	$< ob_goodrich
+
+$(ob_clean_otu): $(clean_src) $(ob_raw_otu)
+	$< ob_goodrich
+
+power_sim_data: $(cdi_clean_otu) $(cdi_clean_meta) $(crc_clean_otu) $(crc_clean_meta) $(ob_clean_otu) $(ob_clean_meta)
+
+################################################
+############## POWER SIMULATION  ###############
+################################################
+
+nreps := 50
+nsig := data/analysis/power_simulation.n_sig.$(nreps)_reps.txt
+tophits := data/analysis/power_simulation.top_hits_sig.$(nreps)_reps.txt
+powersim_src := src/analysis/power_simulation.py
+
+#TODO: need to rewrite power_simulation.py so that it doesn't use the raw OTU table
+
+# This script has all the datasets and input files hard-coded
+# It also makes the data/analysis/population_effects.dataset.txt files,
+# but I won't put these in the makefile for simplicity.
+$(nsig): $(powersim_src) power_sim_data
+	python $<
+
+$(tophits): $(nsig)
+	@if test -f $@; then :; else \
+	  rm -f $<; \
+	  make $<; \
+	fi
 
 ################################################
 ################### FIGURES ####################

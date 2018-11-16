@@ -23,7 +23,7 @@ download_dataset() {
 
     # Need to update timestamp on file, otherwise it keeps the timestamp from
     # upload day to Zenodo
-    touch $1
+    touch ${target_path}
 
     ## Extract file, in the data/raw/ directory as well
     targetdir=${target_path%/*}
@@ -31,7 +31,4 @@ download_dataset() {
 
 }
 
-download_dataset cdi_schubert
-download_dataset crc_baxter
-download_dataset ibd_alm
-download_dataset ob_goodrich
+download_dataset $1
