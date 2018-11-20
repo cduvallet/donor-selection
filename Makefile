@@ -168,6 +168,7 @@ cdi_clean_meta := data/clean/$(D).metadata.feather
 # This also downloads the metadata file, just FYI
 $(cdi_raw_otu): $(download_src)
 	$< cdi_schubert
+	touch $(cdi_raw_otu)
 
 # This also cleans the metadata file, just FYI
 $(cdi_clean_otu): $(clean_src) $(cdi_raw_otu)
@@ -181,6 +182,7 @@ crc_clean_meta := data/clean/$(D).metadata.feather
 
 $(crc_raw_otu): $(download_src)
 	$< crc_baxter
+	touch $(crc_raw_otu)
 
 $(crc_clean_otu): $(clean_src) $(crc_raw_otu)
 	$< crc_baxter
@@ -193,6 +195,7 @@ ob_clean_meta := data/clean/$(D).metadata.feather
 
 $(ob_raw_otu): $(download_src)
 	$< ob_goodrich
+	touch $(ob_raw_otu)
 
 $(ob_clean_otu): $(clean_src) $(ob_raw_otu)
 	$< ob_goodrich
@@ -211,7 +214,7 @@ powersim_src := src/analysis/power_simulation.py
 # This script has all the datasets and input files hard-coded
 # It also makes the data/analysis/population_effects.dataset.txt files,
 # but I won't put these in the makefile for simplicity.
-$(nsig): $(powersim_src) power_sim_data
+$(nsig): $(powersim_src) $(power_sim_data)
 	python $<
 
 $(tophits): $(nsig)
@@ -224,7 +227,7 @@ $(tophits): $(nsig)
 ################### FIGURES ####################
 ################################################
 
-figures: fig2 fig3
+figures: fig2 fig3 fig4
 
 ## IBD case study
 # Figures
@@ -280,3 +283,16 @@ $(fig_donor_ranks): $(fig_distribution_mtabs)
 	  rm -f $<; \
 	  make $<; \
 	fi
+
+
+### Power simulation figure
+fig_power_sim := figures/final/fig4.power_simulation.png
+power_sim_fig_notebook_src := src/exploration/2018-11-19.figures.power_simulation.ipynb
+power_sim_fig_notebook_final := src/figures/figures.power_simulation.ipynb
+fig4: $(fig_power_sim)
+
+$(power_sim_fig_notebook_final): $(power_sim_fig_notebook_src)
+	cp $< $@
+
+$(fig_power_sim): $(power_sim_fig_notebook_final) $(tophits)
+	jupyter nbconvert --execute $<
