@@ -14,40 +14,40 @@ def get_genera():
 
     The taxa from the "[Colonic Butyrate-Producing Communities in Humans: an Overview Using Omics Data](https://msystems.asm.org/content/2/6/e00130-17)" paper are:
 
-    - Odoribacter
+    - Odoribacter - yes
         - Table S2: 5/5 genomes have Acetyl-CoA
-    - E. ventriosum
+    - E. ventriosum - not included
         - this is part of Lachnospiraceae_incertae_sedis
         - 1/1 genomes have Acetyl-CoA
-    - E. hallii
+    - E. hallii - not included
         - 3/3 E. hallii genomes have Acetyl-CoA
         - this is one of the Lachno incertae sedis species
-    - E. rectale
+    - E. rectale - not included
         - 7/7 genomes have Acetyl-CoA
         - this is one of the Lachno incertae sedis species
-    - B. crossotus
+    - B. crossotus - not included
         - this one is not present in >70% of people, it was just added to Fig 1 bc it's high abundance in a few people
-    - S. variabile
+    - S. variabile - yes
         - this was the only subdoligranulum genome (and does have Acetyl-CoA)
-    - ClostridiumXIVa
+    - ClostridiumXIVa - considered (but wasn't in my data, strangely)
         - 42% of the 75 genomes have Acetyl-CoA
         - Paper doesn't address this low percentage, and in fact includes Clostridium XIVa as part of the "global core community"
-    - Coprococcus
+    - Coprococcus - yes
         - 92% of the 13 genomes have Acetyl-CoA
-    - Butyricicoccus
+    - Butyricicoccus - yes
         - 3/3 genomes have Acetyl-CoA
-    - Pseudoflavonifractor
+    - Pseudoflavonifractor - yes
         - 66% of 3 genomes have Acetyl-Coa
-    - Flavonifractor
+    - Flavonifractor - yes
         - 10/10 genomes have Acetyl-CoA
-    - Anaerostipes
+    - Anaerostipes  - yes
         - 14/14 genomes have Acetyl-CoA
-    - R. intestinalis, R. inulinivorans, and R. faecis
+    - R. intestinalis, R. inulinivorans, and R. faecis - yes, Roseburia
         - 12/12 Roseburia genomes have Acetyl-CoA
         - "Manual inspections of major, abundant  genera led us to resolve Roseburia and Lachnospiraceae incertae sedis at the species level, as sequences  of individual species displayed high phylogenetic distances for all pathway genes"
-    - Oscillibacter
+    - Oscillibacter - yes
         - 83% of 6 genomes have Acetyl-CoA
-    - F. prausnitzii
+    - F. prausnitzii - yes
         - 7/7 Faecalibacterium genomes have Acetyl-CoA
         - "For genera that encompassed only one species, such as F. prausnitzii and S. variabile, the species name is displayed."
 

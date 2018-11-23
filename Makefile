@@ -211,11 +211,11 @@ nsig := data/analysis/power_simulation.n_sig.$(nreps)_reps.txt
 tophits := data/analysis/power_simulation.top_hits_sig.$(nreps)_reps.txt
 powersim_src := src/analysis/power_simulation.py
 
-# This script has all the datasets and input files hard-coded
-# It also makes the data/analysis/population_effects.dataset.txt files,
+# This script also makes the data/analysis/population_effects.dataset.txt
+# files, which have the population-level signal-to-noise ratios,
 # but I won't put these in the makefile for simplicity.
 $(nsig): $(powersim_src) $(power_sim_data)
-	python $<
+	python $< --nreps $(nreps) --fout-nsig $(nsig) --fout-tophits $(tophits)
 
 $(tophits): $(nsig)
 	@if test -f $@; then :; else \
