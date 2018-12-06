@@ -59,5 +59,8 @@ litho_hiln_idx = (
     )
 tidydf.loc[litho_hiln_idx, 'metabolite'] = 'lithocholate-HILn'
 
+# Fill NaN's with zeros
+tidydf['intensity'] = tidydf['intensity'].fillna(0.0)
+
 # Write to file
 feather.write_dataframe(tidydf, ftidy)
