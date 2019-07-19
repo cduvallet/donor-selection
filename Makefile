@@ -223,6 +223,9 @@ $(tophits): $(nsig)
 	  make $<; \
 	fi
 
+# No, it doesn't look like the latest version of power_simulation.py makes the population-level effects. That's in calculate_snr.py, I think...
+# python calculate_snr.py -- looks like it's all hard-coded in there
+
 ################################################
 ################### FIGURES ####################
 ################################################
