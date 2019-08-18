@@ -14,7 +14,8 @@ def read_dataframe(fn):
     df = df.iloc[:, 1:]
     return df
 
-datasets = ['cdi_schubert', 'crc_baxter', 'ibd_papa', 'ob_goodrich']
+#datasets = ['cdi_schubert', 'crc_baxter', 'ibd_papa', 'ob_goodrich']
+datasets = ['cdi_schubert', 'crc_baxter', 'ob_goodrich']
 
 labels = {'cdi_schubert': {'control': 'H', 'case': 'CDI'},
           'crc_baxter': {'control': 'H', 'case': 'CRC'},
